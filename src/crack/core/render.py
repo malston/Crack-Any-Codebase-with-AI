@@ -251,10 +251,6 @@ PAGE = """<!doctype html>
   .card-body ul, .card-body ol {{ margin: .5em 0; padding-left: 1.3em; }}
   .card-body li {{ margin: .28em 0; color: #344054; line-height: 1.55; }}
 
-  .rail.pipe .card {{ flex: 0 0 400px; width: 400px; }}
-  .rail.code .card {{ flex: 0 0 520px; width: 520px; }}
-  .rail.trace .card {{ flex: 0 0 460px; width: 460px; }}
-
   pre {{ background: #0f172a; color: #e2e8f0; border-radius: 8px; padding: 11px 13px; overflow-x: auto; margin: 10px 0; }}
   pre code {{ padding: 0; font-size: .74rem; line-height: 1.5; }}
   pre code.hljs {{ background: transparent; padding: 0; color: #e2e8f0; }}

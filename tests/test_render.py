@@ -80,6 +80,9 @@ def test_rail_width_comes_from_the_section():
     html = render.render_html(_analysis(sections), "zulip",
                               {"pipeline_md": "### A\nbody"})
     assert ".rail.pipe .card { flex: 0 0 400px; width: 400px; }" in html
+    assert html.count(".rail.pipe .card") == 1
+    assert ".rail.code .card" not in html
+    assert ".rail.trace .card" not in html
 
 def test_theme_drives_title_eyebrow_and_accent():
     sections = [Section("01", "S", "n", "pipe", 400, "k")]
