@@ -22,10 +22,14 @@ is the living, deduplicated version of the same behavior.
 
 Each chapter workflow is the same PocketFlow skeleton: a crawl step builds
 a text bundle, LLM nodes fill prompts against that bundle, and a renderer
-writes `index.md` plus a self-contained `index.html`. Diffing consecutive
-chapters shows the render helpers, CSS, card/section builders, and run
-loop are 70-80% identical (242 of 294 lines of the ch10 renderer appear
-verbatim in the ch08 renderer). The true per-chapter deltas are:
+writes `index.md` plus a self-contained `index.html`. That skeleton, the
+node plumbing, and the `utils/` helpers are shared by all six.
+
+The renderers split into two families (see "Two renderer families"
+below). Within the card family the overlap is large: 242 of the 294 lines
+of the ch10 renderer appear verbatim in the ch08 renderer, and the
+`_card`, `_section`, and `_intro` helpers are byte-identical across all
+four. The true per-chapter deltas are:
 
 1. the crawl/bundle helper,
 2. the node classes and their prompt files,
@@ -172,10 +176,12 @@ modules drop them and import from `crack.core` instead.
   The chapter renderers are pure functions of a `shared` dict. For each
   ported analysis, a fixture `shared` dict feeds both the chapter's
   `render_html`/`render_markdown` and the new engine; the outputs must
-  match. Parity means byte-identical except for a short, explicit list of
-  deliberate unifications recorded in the test itself (for example a
-  unified `<title>` suffix). These tests need no LLM calls and catch
-  drift the moment an analysis is ported.
+  match. Parity means byte-identical after applying the "Deliberate
+  unifications" list below, which each parity test names explicitly so no
+  difference passes unnoticed. These tests need no LLM calls and catch
+  drift the moment an analysis is ported. For ch05 and ch06, whose
+  renderers are ported nearly verbatim, parity is byte-identical with no
+  exceptions.
 - `crack all` failure isolation gets its own test: mock one analysis's
   flow to raise, assert the other five still run and the exit code is
   non-zero.
@@ -186,19 +192,77 @@ modules drop them and import from `crack.core` instead.
 - TDD applies during implementation: each extraction step lands with its
   test first.
 
-## Port order and the ch05 escape hatch
+## Two renderer families (measured)
 
-Analyses are ported hardest-last: backend, architecture, interfaces,
-schema, git-history, product-intent. The shared engine is proven on the
-converged chapters (ch08-ch10 are nearly identical) before it meets the
-custom ones.
+A file-by-file survey of the six renderers found two families, not one.
 
-ch05 is the known design risk: its renderer is 547 lines against ch10's
-294, and it generates an image via `call_image`. If ch05 cannot be
-expressed as a section spec plus at most two hooks, it keeps a custom
-`render.py` inside its own analysis package that imports the shared
-helpers. Growing the hook system until the engine becomes a framework is
-the failure mode this threshold exists to prevent.
+**The card family — ch07, ch08, ch09, ch10.** These four share the
+`split_cards` → `_card` → `_section` engine. Their `_card`, `_section`,
+and `_intro` helpers are byte-identical. Their `<body>` markup is
+byte-identical apart from the hero eyebrow and the footer line. These
+four are what the shared engine serves.
+
+**The bespoke family — ch05, ch06.** These two hand-build their whole
+page from structured dicts rather than markdown blobs. ch05 has no
+`.rail`, `.card`, `.card-top`, `.sec-head`, or `.intro` at all; it has
+`.pain-card`, `.two-col`, `table.matrix`, and `.card-rail`, plus the only
+filesystem touch in any renderer (embedding `pain.png`). ch06 hardcodes
+its three sections in the template, builds three different card types
+(`_era_card`, `_profile_card`, `_grave_card`), and renders a coloured
+flex timeline instead of a Mermaid diagram. Neither reads
+`shared["overview"]` the way the card family does; ch05 has no
+welcome/intros concept at all.
+
+The escape hatch defined earlier for ch05 therefore fires for ch06 as
+well. Both keep a custom `render.py` inside their own analysis package,
+importing the shared `md`, `md_rich`, `esc`, and CSS base. Forcing them
+through a section spec would mean growing hooks until the engine became a
+framework, which is the outcome the threshold exists to prevent.
+
+## What the shared engine parameterizes
+
+For the card family, the per-analysis differences reduce to two
+declarations.
+
+`SECTIONS` — an ordered list of sections, each with a number, label,
+note, rail class, rail width in pixels, and the `shared` key holding its
+markdown. Two behaviors seen in the survey must be supported: a section
+that is omitted entirely when its key is empty (ch08's tour), and a
+section that renders a "skipped" head with no rail (ch07's migration
+history). ch08 also needs the one existing `prefix_html` hook, which
+hoists a Mermaid diagram above the rail and renders a single hand-built
+card.
+
+`THEME` — the palette and copy that differ per analysis: accent and
+accent-soft colours, hero gradient, eyebrow colour and text, hero
+subtitle colour, `<title>` suffix, footer template, and the hero prefix
+block (an ERD for ch07, a computed bar chart for ch08, a Mermaid diagram
+for ch09 and ch10).
+
+## Deliberate unifications
+
+The survey found small CSS differences among ch07-ch10 that read as drift
+rather than intent. The engine unifies these; each parity test names the
+list explicitly so no difference passes unnoticed.
+
+- `.card` max-height: `72vh` (ch07/08/09) and `74vh` (ch10) unify to `72vh`.
+- `pre code` font-size: `.74rem` and `.73rem` (ch10) unify to `.74rem`.
+- `.card-top` font-size: `.98rem`, `.96rem`, `.95rem` unify to `.96rem`.
+- `.card-body li`: `margin .3em/.28em` and `line-height 1.55/1.5` unify to `.28em` and `1.55`.
+- The `.erd` wrapper class (ch07) becomes `.diagram`, matching ch08-ch10.
+- Table CSS (present in ch07/ch08, absent in ch09/ch10) is included for all four.
+- The Mermaid `flowchart: { htmlLabels: true }` option (ch10 only) applies to all four.
+
+Dead code found by the survey is dropped rather than ported:
+`_welcome_html` (defined in all four, called by none), `extract_mermaid`
+in ch09 and ch10 (defined, never called), and ch09's `.verdict` CSS
+(no element ever carries that class).
+
+## Port order
+
+Analyses are ported easiest-first so the engine is proven before it meets
+the bespoke pages: backend, architecture, interfaces, schema (the card
+family), then git-history and product-intent (custom renderers).
 
 ## Size estimate
 
