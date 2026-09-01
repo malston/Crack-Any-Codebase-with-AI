@@ -1,5 +1,24 @@
+import sys
+import types
+
 import pytest
 from crack import analyses
+
+def test_all_six_real_analyses_load_cleanly():
+    for name in analyses.ANALYSIS_NAMES:
+        analyses.load(name)
+
+def test_stub_missing_sections_raises_naming_the_analysis(monkeypatch):
+    stub = types.ModuleType("crack.analyses.stub")
+    stub.NAME = "stub"
+    stub.build_flow = lambda: None
+    stub.init_shared = lambda args, out_dir: None
+    stub.THEME = object()  # THEME without SECTIONS: not a card, not bespoke either
+    monkeypatch.setitem(sys.modules, "crack.analyses.stub", stub)
+    monkeypatch.setitem(analyses._MODULES, "stub", "stub")
+
+    with pytest.raises(AttributeError, match="stub"):
+        analyses.load("stub")
 
 def test_six_analyses_in_port_order():
     assert analyses.ANALYSIS_NAMES == (
