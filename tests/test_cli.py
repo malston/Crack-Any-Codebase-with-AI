@@ -11,6 +11,27 @@ def test_parser_has_all_seven_subcommands():
         "git-history", "product-intent", "all",
     }
 
+def test_parser_tolerates_an_unimportable_analysis(monkeypatch):
+    """A module that cannot be imported must not break --help."""
+    def flaky_load(name):
+        if name == "schema":
+            raise ImportError("simulated broken analysis module")
+        return types.SimpleNamespace(NAME=name)
+
+    monkeypatch.setattr(cli, "load", flaky_load)
+    parser = cli.build_parser()
+    assert parser.parse_args(["backend", "/tmp/x"]).repo_path == "/tmp/x"
+
+def test_parser_surfaces_a_fault_inside_add_arguments(monkeypatch):
+    """A bug in a working analysis must be loud, not silently missing flags."""
+    def broken_add_arguments(parser):
+        raise TypeError("bug inside add_arguments")
+
+    monkeypatch.setattr(cli, "load", lambda name: types.SimpleNamespace(
+        NAME=name, add_arguments=broken_add_arguments))
+    with pytest.raises(TypeError, match="bug inside add_arguments"):
+        cli.build_parser()
+
 def test_parser_builds_before_any_analysis_exists():
     """_add_analysis_arguments swallows import errors, so --help always works.
 

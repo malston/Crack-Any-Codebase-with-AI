@@ -41,10 +41,15 @@ def build_parser():
     return parser
 
 def _add_analysis_arguments(parser, name):
-    """Let an analysis add its own flags. Import failures must not break --help."""
+    """Let an analysis add its own flags. Import failures must not break --help.
+
+    ImportError covers both a module that is absent and one that fails while
+    importing. A fault inside a working add_arguments still propagates, so a
+    broken analysis is loud rather than silently short of flags.
+    """
     try:
         analysis = load(name)
-    except Exception:
+    except ImportError:
         return
     add = getattr(analysis, "add_arguments", None)
     if add is not None:
