@@ -266,8 +266,10 @@ family), then git-history and product-intent (custom renderers).
 
 ## Size estimate
 
-Roughly 2,500 lines of package code (mostly moved from chapters and
-`utils/`, deduplicated) plus roughly 400 lines of tests.
+Roughly 3,000 lines of package code (mostly moved from chapters and
+`utils/`, deduplicated) plus roughly 600 lines of tests. The estimate is
+higher than a pure card-family collapse would need, because ch05 and ch06
+keep their own renderers.
 
 ## Open items
 
