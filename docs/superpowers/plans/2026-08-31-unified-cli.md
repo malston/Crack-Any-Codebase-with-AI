@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- No file under any `ch*/` directory may be created, modified, or deleted. Verify with `git status` before every commit.
+- No file under any `ch*/` directory may be created, modified, or deleted. Verify with `git status --porcelain -- 'ch*'` before every commit. One pre-existing modification is the accepted baseline and is not yours to touch, revert, or commit: ` M ch03-workflow/workflow/nodes.py`. Any other path appearing in that output is a violation.
 - Root `utils/` is not modified. `src/crack/core/` gets its own copy.
 - `requires-python = ">=3.10"`.
 - Runtime dependencies: `pocketflow>=0.0.1`, `pyyaml>=6.0`, `markdown-it-py>=3.0`, `pathspec>=0.12`. Provider SDKs are optional extras only: `anthropic>=0.40.0`, `openai>=1.0.0`, `google-genai>=0.3.0`.
@@ -690,7 +690,8 @@ Append the `PAGE` constant to `render.py`. Build it by copying the `HTML_TEMPLAT
 7. In `.card-top`, replace the gradient start with `{card_top_from}` and change `font-size: .95rem` to `font-size: .96rem`.
 8. In `.card-body li`, change `margin: .3em 0` to `margin: .28em 0`.
 9. In `pre code`, change `font-size: .73rem` to `font-size: .74rem`.
-10. Add the table rules from `ch07-schema/workflow/render.py:179-183` immediately after the `code` rule, including the `td code` line ch08 lacks.
+10. Add the table rules from `ch07-schema/workflow/render.py:179-183` immediately after the `code` rule, including the `td code` line ch08 lacks. ch09 and ch10 have no table CSS at all, so their parity tests subtract this block; keep it a contiguous run of four rules.
+10b. Add the `.groupchart` / `.gc-*` rules from `ch08-interfaces/workflow/render.py:120-129` verbatim, immediately after the `.diagram` rules, including the trailing `@media (max-width: 560px)` line. Only the interfaces analysis draws a chart, but the page template is shared, so the block lives here and the other three analyses subtract it in their parity tests. Keep it a contiguous run.
 11. Add a `{rail_widths}` placeholder on its own line immediately after the `.rail::-webkit-scrollbar-thumb` rule; the engine fills it with one `.rail.<name> .card` rule per section.
 12. Replace `<span class="eyebrow">Backend</span>` with `<span class="eyebrow">{eyebrow}</span>`.
 13. Replace the whole `<footer>` line with `    <footer>{footer}</footer>`.
@@ -1182,14 +1183,16 @@ def test_parser_has_all_seven_subcommands():
         "git-history", "product-intent", "all",
     }
 
-def test_per_analysis_flags_are_wired():
+def test_parser_builds_before_any_analysis_exists():
+    """_add_analysis_arguments swallows import errors, so --help always works.
+
+    Per-analysis flag wiring is asserted in Tasks 10, 11 and 12, and end to end
+    through the CLI in Task 13; those analyses do not exist when this runs.
+    """
     parser = cli.build_parser()
-    args = parser.parse_args(["git-history", "/tmp/x", "--max-graves", "3"])
-    assert args.max_graves == 3
-    args = parser.parse_args(["schema", "/tmp/x", "--schema", "db/schema.rb"])
-    assert args.schema == "db/schema.rb"
-    args = parser.parse_args(["product-intent", "/tmp/x", "--include", "src/**"])
-    assert args.include == ["src/**"]
+    args = parser.parse_args(["backend", "/tmp/x", "--out", "/tmp/o"])
+    assert args.repo_path == "/tmp/x"
+    assert args.out == "/tmp/o"
 
 def test_missing_repo_path_exits_before_running(tmp_path, capsys):
     code = cli.main(["backend", str(tmp_path / "nope")])
@@ -1410,6 +1413,42 @@ def apply_unifications(html, pairs):
             assert old in html, f"unification no longer applies: {old!r}"
             html = html.replace(old, new)
     return html
+
+
+def strip_engine_additions(html, blocks):
+    """Remove CSS blocks the shared engine emits that this chapter never had.
+
+    The engine carries one page template for all four card-family analyses, so
+    it always emits the table rules and the bar-chart rules. A chapter that
+    lacked a block cannot match byte-for-byte until that block is subtracted.
+    Each block must match exactly, so a block that drifts fails loudly instead
+    of silently masking a regression.
+    """
+    for block in blocks:
+        assert block in html, f"engine no longer emits this block verbatim: {block[:60]!r}"
+        html = html.replace(block, "", 1)
+    return html
+
+
+# The two blocks the engine always emits, as they appear in rendered output.
+# Braces are singled here: PAGE doubles them for str.format, the output does not.
+TABLE_CSS = """  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: .78rem; }
+  th, td { border: 1px solid var(--rule); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--stone-bg); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  td code { font-size: .92em; }
+"""
+
+GROUPCHART_CSS = """  .groupchart { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px 20px; display: flex; flex-direction: column; gap: 7px; }
+  .gc-row { display: flex; align-items: center; gap: 12px; }
+  .gc-name { flex: 0 0 220px; font-size: .82rem; font-weight: 600; color: var(--text); text-align: right;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gc-track { flex: 1; background: var(--stone-bg); border-radius: 5px; overflow: hidden; }
+  .gc-bar { height: 22px; background: linear-gradient(90deg, #2dd4bf, var(--accent)); border-radius: 5px;
+    color: #fff; font-size: .72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; min-width: 24px; }
+  @media (max-width: 560px) { .gc-name { flex-basis: 110px; } }
+"""
 ```
 
 - [ ] **Step 2: Write the failing parity test**
@@ -1419,11 +1458,15 @@ Create `tests/test_parity_backend.py`:
 ````python
 """The ported backend renderer must match ch10's, modulo the named unifications."""
 import pytest
-from conftest import apply_unifications
+from conftest import (GROUPCHART_CSS, TABLE_CSS, apply_unifications,
+                      strip_engine_additions)
 from crack.analyses import backend
 from crack.core import render
 
-# Every difference between ch10's page and the engine's, stated explicitly.
+# ch10 has neither table CSS nor the bar-chart CSS; the shared engine emits both.
+ADDITIONS = [TABLE_CSS, GROUPCHART_CSS]
+
+# Every remaining difference between ch10's page and the engine's, stated explicitly.
 UNIFICATIONS = [
     ("max-height: 74vh", "max-height: 72vh"),
     ("font-size: .95rem", "font-size: .96rem"),
@@ -1452,7 +1495,7 @@ SHARED = {
 def test_html_matches_chapter(chapter_render):
     chapter = chapter_render("ch10-backend")
     expected = apply_unifications(chapter.render_html("zulip", SHARED), UNIFICATIONS)
-    actual = render.render_html(backend, "zulip", SHARED)
+    actual = strip_engine_additions(render.render_html(backend, "zulip", SHARED), ADDITIONS)
     assert actual == expected
 
 def test_markdown_matches_chapter(chapter_render):
@@ -1658,13 +1701,13 @@ Create `tests/test_parity_architecture.py`:
 
 ```python
 """The ported architecture renderer must match ch09's, modulo the named unifications."""
-from conftest import apply_unifications
+from conftest import (GROUPCHART_CSS, TABLE_CSS, apply_unifications,
+                      strip_engine_additions)
 from crack.analyses import architecture
 from crack.core import render
 
-# ch09 has no table CSS; the engine adds it for every card-family analysis.
-TABLE_CSS = """  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: .8rem; }
-"""
+# ch09 has neither table CSS nor the bar-chart CSS; the shared engine emits both.
+ADDITIONS = [TABLE_CSS, GROUPCHART_CSS]
 
 UNIFICATIONS = []  # ch09 already sits on every unified value
 
@@ -1685,9 +1728,9 @@ SHARED = {
 def test_html_matches_chapter(chapter_render):
     chapter = chapter_render("ch09-architecture")
     expected = apply_unifications(chapter.render_html("nats", SHARED), UNIFICATIONS)
-    actual = render.render_html(architecture, "nats", SHARED)
-    # The only structural addition is the table CSS block ch09 lacked.
-    assert actual.replace(TABLE_CSS, "") == expected
+    actual = strip_engine_additions(
+        render.render_html(architecture, "nats", SHARED), ADDITIONS)
+    assert actual == expected
 
 def test_markdown_matches_chapter(chapter_render):
     chapter = chapter_render("ch09-architecture")
@@ -1867,10 +1910,17 @@ from conftest import apply_unifications
 from crack.analyses import interfaces
 from crack.core import render
 
+# ch08 already carries both the table CSS and the bar-chart CSS, so it subtracts
+# nothing. Its shorter `th` rule unifies to ch07's, which the engine standardises on.
+ADDITIONS = []
+
 UNIFICATIONS = [
     ("font-size: .98rem", "font-size: .96rem"),
     ("margin: .28em 0; color: #344054; line-height: 1.5;",
      "margin: .28em 0; color: #344054; line-height: 1.55;"),
+    ("  th { background: var(--stone-bg); font-size: .7rem; text-transform: uppercase; color: var(--muted); }\n",
+     "  th { background: var(--stone-bg); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }\n"
+     "  td code { font-size: .92em; }\n"),
 ]
 
 SHARED = {
@@ -1901,7 +1951,7 @@ def test_html_matches_chapter_when_tour_is_absent(chapter_render):
     shared.pop("tour_md")
     chapter = chapter_render("ch08-interfaces")
     expected = apply_unifications(chapter.render_html("gitea", shared), UNIFICATIONS)
-    actual = render.render_html(interfaces, "gitea", shared)
+    actual = render.render_html(interfaces, "gitea", shared)   # ADDITIONS is empty
     assert actual == expected
     assert "The tour" not in actual
 
@@ -2069,28 +2119,24 @@ def build_flow():
 
 Then append the `overview_spec` function you deleted from `nodes.py`, unchanged.
 
-- [ ] **Step 6: Add the bar-chart CSS to the engine**
+- [ ] **Step 6: Run the tests to verify they pass**
 
-The `.groupchart` rules live only in ch08 today, but the page template is shared, so they belong in `render.py`'s `PAGE`. Copy the block at `ch08-interfaces/workflow/render.py:120-129` verbatim into `PAGE`, immediately after the `.diagram` rules. It is inert for analyses whose hero is not a chart.
+Run: `pytest tests/test_parity_interfaces.py -v`
+Expected: 5 passed.
 
-Remember the doubled braces: inside a `str.format` template every literal `{` and `}` must be written `{{` and `}}`.
+The `.groupchart` CSS this analysis needs already lives in the engine, added in Task 3. Do not edit `src/crack/core/render.py` in this task; the engine is frozen once Task 3 ends, so the parity tests written in Tasks 7 and 8 stay valid.
 
-- [ ] **Step 7: Run the tests to verify they pass**
-
-Run: `pytest tests/test_parity_interfaces.py tests/test_parity_backend.py tests/test_parity_architecture.py -v`
-Expected: 12 passed. The two earlier parity tests must still pass after the CSS addition; if they fail, the `.groupchart` block landed in the wrong place.
-
-- [ ] **Step 8: Run the whole suite and check the chapters**
+- [ ] **Step 7: Run the whole suite and check the chapters**
 
 ```bash
 pytest -v
 git status --porcelain -- 'ch*'   # must be empty
 ```
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/crack/analyses/interfaces src/crack/core/render.py tests/test_parity_interfaces.py
+git add src/crack/analyses/interfaces tests/test_parity_interfaces.py
 git commit -m "feat: interfaces analysis ported from ch08 with parity tests"
 ```
 
@@ -2120,9 +2166,13 @@ Create `tests/test_parity_schema.py`:
 ```python
 """The ported schema renderer must match ch07's, modulo the named unifications."""
 import argparse
-from conftest import apply_unifications
+from conftest import GROUPCHART_CSS, apply_unifications, strip_engine_additions
 from crack.analyses import schema
 from crack.core import render
+
+# ch07 already carries the table CSS the engine standardises on, but never had
+# the bar-chart CSS.
+ADDITIONS = [GROUPCHART_CSS]
 
 UNIFICATIONS = [
     ("font-size: .98rem", "font-size: .96rem"),
@@ -2155,7 +2205,9 @@ SHARED = {
 def test_html_matches_chapter(chapter_render):
     chapter = chapter_render("ch07-schema")
     expected = apply_unifications(chapter.render_html("discourse", SHARED), UNIFICATIONS)
-    assert render.render_html(schema, "discourse", SHARED) == expected
+    actual = strip_engine_additions(
+        render.render_html(schema, "discourse", SHARED), ADDITIONS)
+    assert actual == expected
 
 def test_html_matches_chapter_when_migrations_are_skipped(chapter_render):
     """Section 04 keeps its head and note but grows no rail."""
@@ -2163,7 +2215,8 @@ def test_html_matches_chapter_when_migrations_are_skipped(chapter_render):
     shared.pop("migration_md")
     chapter = chapter_render("ch07-schema")
     expected = apply_unifications(chapter.render_html("discourse", shared), UNIFICATIONS)
-    actual = render.render_html(schema, "discourse", shared)
+    actual = strip_engine_additions(
+        render.render_html(schema, "discourse", shared), ADDITIONS)
     assert actual == expected
     assert "Migration history" in actual
     assert 'class="rail acts"' not in actual
