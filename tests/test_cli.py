@@ -61,6 +61,31 @@ def test_all_isolates_one_failing_analysis(tmp_path, monkeypatch, capsys):
     assert "schema" not in ran
     assert "schema" in capsys.readouterr().err
 
+def test_all_isolates_an_analysis_that_fails_to_import(tmp_path, monkeypatch, capsys):
+    """An import failure must be isolated like any other failure, not fatal."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    ran = []
+
+    def flaky_load(name):
+        if name == "schema":
+            raise ImportError("simulated broken analysis module")
+        return types.SimpleNamespace(NAME=name)
+
+    monkeypatch.setattr(cli, "load", flaky_load)
+    monkeypatch.setattr(
+        cli, "run_analysis",
+        lambda analysis, repo_path, out_root, args:
+            (ran.append(analysis.NAME) or os.path.join(out_root, analysis.NAME), ""))
+    monkeypatch.setattr(cli, "write_index", lambda *a, **k: "/out/index.html")
+
+    code = cli.main(["all", str(repo), "--out", str(tmp_path / "o")])
+
+    assert code != 0
+    assert len(ran) == 5
+    assert "schema" not in ran
+    assert "schema" in capsys.readouterr().err
+
 def test_per_analysis_flags_parse_now_that_analyses_exist():
     """Deferred from Task 6: these flags come from analyses built in Tasks 10-12."""
     parser = cli.build_parser()

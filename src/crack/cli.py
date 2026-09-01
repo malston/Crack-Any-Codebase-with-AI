@@ -44,7 +44,7 @@ def _add_analysis_arguments(parser, name):
     """Let an analysis add its own flags. Import failures must not break --help."""
     try:
         analysis = load(name)
-    except ModuleNotFoundError:
+    except Exception:
         return
     add = getattr(analysis, "add_arguments", None)
     if add is not None:
@@ -61,9 +61,9 @@ def main(argv=None):
     written, failed = {}, []
 
     for name in names:
-        analysis = load(name)
         print(f"\n=== {name} ===")
         try:
+            analysis = load(name)
             out_dir, welcome = run_analysis(analysis, args.repo_path, args.out, args)
             written[name] = (out_dir, welcome)
         except Exception as exc:               # one analysis must not stop the rest
