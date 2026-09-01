@@ -7,7 +7,7 @@ docs, examples, locales, vendored code, caches, build artifacts).
 Override any default by passing your own set. The exposed constants are
 frozensets so you can union or difference them:
 
-    from utils import crawl, DEFAULT_SKIP_DIR
+    from crack.core import crawl, DEFAULT_SKIP_DIR
     # add to defaults:
     crawl("repo/", skip_dirs=DEFAULT_SKIP_DIR | {"my-generated-dir"})
     # restrict to one language:

@@ -7,7 +7,7 @@ structured data rather than markdown blobs.
 """
 import html as _html
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Optional
 
 from markdown_it import MarkdownIt

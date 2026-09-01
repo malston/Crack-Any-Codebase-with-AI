@@ -1,5 +1,4 @@
 import types
-import pytest
 from crack.core import render
 from crack.core.render import Section, Theme
 

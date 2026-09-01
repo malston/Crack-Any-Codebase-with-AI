@@ -1,5 +1,4 @@
 """The ported backend renderer must match ch10's, modulo the named unifications."""
-import pytest
 from conftest import (GROUPCHART_CSS, TABLE_CSS, apply_unifications,
                       strip_engine_additions)
 from crack.analyses import backend

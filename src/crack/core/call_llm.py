@@ -9,21 +9,25 @@ Override the auto pick with LLM_PROVIDER=anthropic|openai|gemini.
 Override the model with ANTHROPIC_MODEL / OPENAI_MODEL / GEMINI_MODEL.
 
 Caching:
-  Responses are cached on disk under utils/.cache/ keyed by sha256 of
+  Responses are cached on disk under ~/.cache/crack/ keyed by sha256 of
   (provider + model + prompt). The cache survives across runs so iterating on
   downstream code (UI, post processing, README copy) costs nothing.
 
   Disable with LLM_CACHE=0.
-  Clear with: rm -rf utils/.cache
+  Clear with: rm -rf ~/.cache/crack
 
 Smoke test:
-  python -m utils.call_llm
+  python -m crack.core.call_llm
 """
 import hashlib
 import json
 import os
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), ".cache")
+# Not next to the module: this package is meant to be pip-installed, and
+# site-packages may be read-only, so the cache lives in the user's home
+# instead. Override with CRACK_CACHE_DIR.
+CACHE_DIR = os.environ.get("CRACK_CACHE_DIR") or os.path.join(
+    os.path.expanduser("~/.cache"), "crack")
 
 
 def _pick():
@@ -63,21 +67,26 @@ def _cache_get(provider, model, prompt):
     if os.environ.get("LLM_CACHE", "1") == "0":
         return None
     path = _cache_path(provider, model, prompt)
-    if not os.path.exists(path):
-        return None
     try:
+        if not os.path.exists(path):
+            return None
         return json.load(open(path))["response"]
     except (OSError, ValueError, KeyError):
         return None
 
 
 def _cache_put(provider, model, prompt, response):
+    # A cache write must never kill a run that already has its paid-for
+    # answer, so a failure here (e.g. a read-only install) is swallowed.
     if os.environ.get("LLM_CACHE", "1") == "0":
         return
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    path = _cache_path(provider, model, prompt)
-    json.dump({"provider": provider, "model": model, "response": response},
-              open(path, "w"))
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        path = _cache_path(provider, model, prompt)
+        json.dump({"provider": provider, "model": model, "response": response},
+                  open(path, "w"))
+    except OSError:
+        return
 
 
 def call_llm(prompt: str) -> str:

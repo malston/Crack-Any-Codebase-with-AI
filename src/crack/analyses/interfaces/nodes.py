@@ -16,7 +16,7 @@ import re
 import yaml
 from pocketflow import Node
 
-from crack.core import call_llm, read_prompt, fill, extract_mermaid
+from crack.core import call_llm, read_prompt, fill
 from . import routes_find as rf
 
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), 'prompts')
