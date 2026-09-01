@@ -49,12 +49,14 @@ src/crack/
     crawl.py                # crawl, list_files, safe_read, defaults
     overview.py             # page-overview writer
     nodes.py                # OverviewNode
-    render.py               # shared renderer: md/html helpers, CSS, cards,
-                            # sections, page shell, welcome/intro blocks
+    env.py                  # apply an analysis's ENV_DEFAULTS, then restore
+    render.py               # Section, Theme, the card-family engine, and the
+                            # md/esc helpers the custom renderers reuse
     runner.py               # run one analysis: flow.run(shared) -> write
                             # index.md + index.html into the output dir
+    index.py                # the landing page `crack all` writes
   analyses/
-    __init__.py             # registry: name -> analysis module
+    __init__.py             # registry: name -> analysis module (lazy import)
     product_intent/
     git_history/
     schema/
@@ -62,16 +64,24 @@ src/crack/
     architecture/
     backend/
       # each package contains:
-      #   nodes.py          node classes + overview_spec + build_flow()
+      #   __init__.py       NAME, THEME, SECTIONS, build_flow, overview_spec,
+      #                     init_shared, add_arguments, ENV_DEFAULTS
+      #   nodes.py          the analysis's node classes
       #   <crawl helper>.py gitlog.py / schema_find.py / routes_find.py /
       #                     arch_crawl.py / backend_crawl.py / (ch05: crawl args)
-      #   sections.py       section spec consumed by core/render.py
+      #   render.py         ONLY for product_intent and git_history, whose
+      #                     pages are hand-built (see "Two renderer families")
       #   prompts/*.md      copied verbatim from the chapter's prompts/
 tests/
-  test_render.py            # card splitting, section building, html shell
-  test_crawl.py             # include/exclude, size caps, skip dirs
-  test_cli.py               # dispatch, output paths, flag wiring
-  test_sections.py          # each analysis's section spec renders
+  conftest.py               # chapter_render loader + unification helper
+  test_core_imports.py      # crack.core re-exports the utils/ surface
+  test_env.py               # ENV_DEFAULTS set and restore
+  test_registry.py          # names, lazy import, unknown name
+  test_render.py            # helpers, Section modes, Theme, dispatch
+  test_runner.py            # output layout, env application, out_dir hand-off
+  test_index.py             # the `crack all` landing page
+  test_cli.py               # dispatch, flag wiring, failure isolation
+  test_parity_<analysis>.py # one per analysis: new output vs the chapter's
   test_smoke.py             # one real end-to-end run; skipped without API key
 ```
 
@@ -81,7 +91,6 @@ Every analysis package exposes the same surface:
 
 ```python
 NAME: str            # subcommand name, e.g. "backend"
-TITLE: str           # report title fragment
 def build_flow() -> pocketflow.Flow
 def overview_spec(shared: dict) -> dict      # consumed by OverviewNode
 SECTIONS: list[Section]                       # consumed by core/render.py
@@ -98,13 +107,11 @@ needs its `--max-graves` and `--grave-min-files` values; ch07 needs
 Analyses may write extra files into `out_dir` beyond `index.md` and
 `index.html`; the `crack all` index page links the report, not the extras.
 
-`Section` is a small dataclass in `core/render.py`: number, label, note,
-rail class, the shared-state key holding the markdown, and an optional
-card-splitting or chart hook. The per-chapter `render_html` /
-`render_markdown` functions collapse into this declaration plus the
-shared engine. Where a chapter has a genuinely custom render step (the
-ch08 group chart, the ch05 pain illustration), the section spec carries a
-hook function; the engine calls it.
+`SECTIONS` and `THEME` are declared only by the card-family analyses. The
+bespoke pair (product-intent, git-history) omits both and exposes
+`render_html(name, shared)` / `render_markdown(name, shared)` instead;
+`core/render.py` checks for those first and defers to them. See "Two
+renderer families" and "What the shared engine parameterizes" below.
 
 ## CLI behavior
 
