@@ -82,8 +82,17 @@ def build_flow() -> pocketflow.Flow
 def overview_spec(shared: dict) -> dict      # consumed by OverviewNode
 SECTIONS: list[Section]                       # consumed by core/render.py
 def add_arguments(parser) -> None             # analysis-specific flags, optional
+def init_shared(args, out_dir: str) -> dict   # build the flow's shared dict
 ENV_DEFAULTS: dict[str, str]                  # e.g. LLM_MAX_OUTPUT_TOKENS
 ```
+
+`init_shared` exists because some analyses need more in `shared` than the
+repo path. ch05 needs `pain_image_path_target` set to `<out_dir>/pain.png`
+before the flow runs, since one node writes a generated image there; ch06
+needs its `--max-graves` and `--grave-min-files` values; ch07 needs
+`--schema`. The default implementation returns `{"repo_path": args.repo_path}`.
+Analyses may write extra files into `out_dir` beyond `index.md` and
+`index.html`; the `crack all` index page links the report, not the extras.
 
 `Section` is a small dataclass in `core/render.py`: number, label, note,
 rail class, the shared-state key holding the markdown, and an optional
@@ -129,8 +138,11 @@ Root `utils/` stays as-is because the chapter folders import it. `src/
 crack/core/` receives a copy of its five modules so the package is
 self-contained and installable. This duplication is deliberate: the
 chapters are frozen teaching snapshots; `src/` is the maintained code.
-The copies drop the `sys.path` manipulation and use package-relative
-imports.
+
+`utils/` is already a package with relative imports and no `sys.path`
+manipulation, so the copy is close to verbatim. The `sys.path.insert`
+lines live in the chapter files, not in `utils/`; the ported analysis
+modules drop them and import from `crack.core` instead.
 
 ## Packaging
 
@@ -155,10 +167,38 @@ imports.
 
 - Unit tests need no network: renderer, crawl, CLI dispatch, section
   specs, the `all` index page.
-- `test_smoke.py` runs one cheap real analysis end to end against a tiny
-  fixture repo; it skips unless an API key is present.
+- **Parity tests are the core check that this refactor preserves
+  behavior.**
+  The chapter renderers are pure functions of a `shared` dict. For each
+  ported analysis, a fixture `shared` dict feeds both the chapter's
+  `render_html`/`render_markdown` and the new engine; the outputs must
+  match. Parity means byte-identical except for a short, explicit list of
+  deliberate unifications recorded in the test itself (for example a
+  unified `<title>` suffix). These tests need no LLM calls and catch
+  drift the moment an analysis is ported.
+- `crack all` failure isolation gets its own test: mock one analysis's
+  flow to raise, assert the other five still run and the exit code is
+  non-zero.
+- `test_smoke.py` runs one cheap real analysis end to end against a
+  fixture repo built in a tmpdir with `git init` and two commits, so the
+  git-history analysis is smoke-testable too. It skips unless an API key
+  is present.
 - TDD applies during implementation: each extraction step lands with its
   test first.
+
+## Port order and the ch05 escape hatch
+
+Analyses are ported hardest-last: backend, architecture, interfaces,
+schema, git-history, product-intent. The shared engine is proven on the
+converged chapters (ch08-ch10 are nearly identical) before it meets the
+custom ones.
+
+ch05 is the known design risk: its renderer is 547 lines against ch10's
+294, and it generates an image via `call_image`. If ch05 cannot be
+expressed as a section spec plus at most two hooks, it keeps a custom
+`render.py` inside its own analysis package that imports the shared
+helpers. Growing the hook system until the engine becomes a framework is
+the failure mode this threshold exists to prevent.
 
 ## Size estimate
 
