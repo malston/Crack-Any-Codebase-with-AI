@@ -2538,12 +2538,11 @@ Copy `ch06-git-history/workflow/nodes.py` to `src/crack/analyses/git_history/nod
 
 ```python
 import os
-import re
 
 from pocketflow import Node
 
-from crack.core import call_llm, read_prompt, fill, yaml_call
-from . import gitlog
+from crack.core import call_llm, DEFAULT_SKIP_DIR, read_prompt, fill, json_call
+from . import gitlog as gl
 
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), 'prompts')
 
@@ -2551,7 +2550,9 @@ def load_prompt(name):
     return read_prompt(PROMPTS_DIR, name)
 ```
 
-Import from `crack.core` only the names the chapter file actually used; drop any that are unused after the move. Keep `FetchHistory`, `NameEras`, `ProfileEras`, and `Graveyard` exactly as they are. Delete `overview_spec`; it moves to `__init__.py`. Keep the chapter's alias for the gitlog module if it differs.
+This block mirrors ch06's own imports (`ch06-git-history/workflow/nodes.py:13-20`), which pull `call_llm, DEFAULT_SKIP_DIR, read_prompt, fill, json_call` — note `json_call`, NOT `yaml_call` — and alias the git reader as `gl`. Keep the `gl` alias so the node bodies need no edits. ch06 imports no `re`.
+
+Before committing, confirm no module-level name the chapter used was dropped: run `python3 -c "import crack.analyses.git_history"` and grep the ported file for bare `yaml.`/`json.`/`time.` uses. Keep `FetchHistory`, `NameEras`, `ProfileEras`, and `Graveyard` exactly as they are. Delete `overview_spec`; it moves to `__init__.py`.
 
 - [ ] **Step 6: Write the analysis module**
 
@@ -2738,15 +2739,21 @@ Copy `ch05-product-intent/workflow/nodes.py` to `src/crack/analyses/product_inte
 
 ```python
 import os
+import re
+import yaml
 
 from pocketflow import Node
 
-from crack.core import call_llm, call_image, crawl, read_prompt, fill, yaml_call
+from crack.core import call_llm, call_image, crawl
 
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), 'prompts')
 ```
 
-Import from `crack.core` only the names the chapter file actually used; drop any that are unused after the move. The chapter defines a local prompt loader reading from `PROMPTS_DIR`; keep it as it is now that `PROMPTS_DIR` points inside the package. Keep `FetchRepo`, `PainScene`, `VariantSentence`, `CompetitivePositioning`, `IllustratePain`, and `SurprisesAndAbsences` exactly as they are, including `IllustratePain.exec_fallback`, which keeps a failed image from killing the run.
+This block mirrors ch05's own imports (`ch05-product-intent/workflow/nodes.py:11-15`). Three things matter:
+
+- `import yaml` is REQUIRED: ch05 defines its own `parse_yaml` (line 24) calling `yaml.safe_load`, and its own `yaml_call` (line 30). Dropping it gives a runtime `NameError` no parity test can catch, because the parity tests never run the LLM path.
+- `import re` is REQUIRED for the same reason.
+- Do NOT import `read_prompt`, `fill` or `yaml_call` from `crack.core`: ch05 defines its own `load_prompt`, `parse_yaml` and `yaml_call` locally. Keep all three, now that `PROMPTS_DIR` points inside the package. Keep `FetchRepo`, `PainScene`, `VariantSentence`, `CompetitivePositioning`, `IllustratePain`, and `SurprisesAndAbsences` exactly as they are, including `IllustratePain.exec_fallback`, which keeps a failed image from killing the run.
 
 - [ ] **Step 6: Write the analysis module**
 
