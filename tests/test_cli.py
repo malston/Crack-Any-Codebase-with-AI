@@ -60,3 +60,27 @@ def test_all_isolates_one_failing_analysis(tmp_path, monkeypatch, capsys):
     assert len(ran) == 5
     assert "schema" not in ran
     assert "schema" in capsys.readouterr().err
+
+def test_per_analysis_flags_parse_now_that_analyses_exist():
+    """Deferred from Task 6: these flags come from analyses built in Tasks 10-12."""
+    parser = cli.build_parser()
+    args = parser.parse_args(["git-history", "/tmp/x", "--max-graves", "3",
+                              "--grave-min-files", "12"])
+    assert args.max_graves == 3
+    assert args.grave_min_files == 12
+    args = parser.parse_args(["schema", "/tmp/x", "--schema", "db/schema.rb"])
+    assert args.schema == "db/schema.rb"
+    args = parser.parse_args(["product-intent", "/tmp/x",
+                              "--include", "src/**", "--exclude", "**/test/**"])
+    assert args.include == ["src/**"]
+    assert args.exclude == ["**/test/**"]
+
+
+def test_all_subcommand_accepts_every_analysis_flag():
+    """`crack all` merges all six analyses' flags onto one parser."""
+    parser = cli.build_parser()
+    args = parser.parse_args(["all", "/tmp/x", "--schema", "db/schema.rb",
+                              "--max-graves", "2", "--include", "src/**"])
+    assert args.schema == "db/schema.rb"
+    assert args.max_graves == 2
+    assert args.include == ["src/**"]

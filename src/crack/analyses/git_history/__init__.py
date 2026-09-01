@@ -36,7 +36,7 @@ def build_flow():
 
 
 # The friendly "start here" welcome runs on the shared OverviewNode
-# (utils/nodes.py); this just supplies the chapter-specific bits it needs.
+# (crack/core/nodes.py); this just supplies the chapter-specific bits it needs.
 def overview_spec(shared):
     name = os.path.basename(shared["repo_path"].rstrip("/")) or shared["repo_path"]
     eras = shared.get("eras", [])

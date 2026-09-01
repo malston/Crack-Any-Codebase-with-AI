@@ -95,7 +95,7 @@ def build_flow():
     return Flow(start=find)
 
 def overview_spec(shared):
-    """The chapter-specific bits the shared OverviewNode needs (see utils/nodes.py)."""
+    """The chapter-specific bits the shared OverviewNode needs (see crack/core/nodes.py)."""
     name = shared.get("product_name") or os.path.basename(shared["repo_path"].rstrip("/"))
     return {
         "name": name,

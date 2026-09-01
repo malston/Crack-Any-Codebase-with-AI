@@ -1,6 +1,7 @@
 """Shared test helpers. The parity tests load each chapter's renderer off disk."""
 import importlib.util
 import pathlib
+import subprocess
 import sys
 
 import pytest
@@ -80,3 +81,48 @@ GROUPCHART_CSS = """  .groupchart { background: var(--surface); border: 1px soli
     display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; min-width: 24px; }
   @media (max-width: 560px) { .gc-name { flex-basis: 110px; } }
 """
+
+
+APP = '''\
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+NOTES = {}
+
+@app.route("/notes", methods=["POST"])
+def create_note():
+    body = request.get_json()
+    NOTES[body["id"]] = body["text"]
+    return jsonify(ok=True)
+
+@app.route("/notes/<note_id>")
+def read_note(note_id):
+    return jsonify(text=NOTES.get(note_id))
+'''
+
+MODELS = '''\
+CREATE TABLE notes (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+'''
+
+def _git(repo, *args):
+    subprocess.run(["git", *args], cwd=repo, check=True,
+                   capture_output=True, text=True)
+
+@pytest.fixture(scope="session")
+def fixture_repo(tmp_path_factory):
+    repo = tmp_path_factory.mktemp("notes-app")
+    (repo / "app.py").write_text(APP)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "feat: notes API with create and read")
+
+    (repo / "schema.sql").write_text(MODELS)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "feat: persist notes in a table")
+    return str(repo)
