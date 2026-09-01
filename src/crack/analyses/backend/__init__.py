@@ -15,7 +15,7 @@ ENV_DEFAULTS = {"LLM_MAX_OUTPUT_TOKENS": "32768"}
 
 SECTIONS = [
     Section("01", "The pipeline",
-            "route &middot; middleware &middot; handler &middot; service &middot; database &middot; response",
+            "route · middleware · handler · service · database · response",
             "pipe", 400, "pipeline_md"),
     Section("02", "The code",
             "only the layers the team built in a non-standard way",

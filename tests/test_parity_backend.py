@@ -68,24 +68,6 @@ UNIFICATIONS = [
      "  .card-body ul, .card-body ol { margin: .5em 0; padding-left: 1.3em; }\n"
      "  .card-body li { margin: .28em 0; color: #344054; line-height: 1.55; }\n"
      "\n"),
-
-    # Artifact of subtracting GROUPCHART_CSS via strip_engine_additions: the
-    # engine's template separates that block from its neighbors with a blank
-    # line on each side, so removing the block-body leaves two blank lines
-    # where ch10 (which never had the block) only has one.
-    ("  .diagram pre.mermaid svg { max-width: 100%; height: auto; }\n\n  .rail { display: flex;",
-     "  .diagram pre.mermaid svg { max-width: 100%; height: auto; }\n\n\n  .rail { display: flex;"),
-
-    # Same artifact, for TABLE_CSS.
-    ("    background: var(--stone-bg); color: var(--text); padding: 1px 5px; border-radius: 4px; }\n\n  footer {",
-     "    background: var(--stone-bg); color: var(--text); padding: 1px 5px; border-radius: 4px; }\n\n\n  footer {"),
-
-    # ch10's SECTIONS hardcoded a literal middle-dot character in this one
-    # section note; the ported SECTIONS (src/crack/analyses/backend/__init__.py)
-    # uses the &middot; entity, matching every other separator in the page
-    # (e.g. the footer). Standardizing on the entity.
-    ("route · middleware · handler · service · database · response",
-     "route &middot; middleware &middot; handler &middot; service &middot; database &middot; response"),
 ]
 
 SHARED = {

@@ -49,10 +49,15 @@ def strip_engine_additions(html, blocks):
     lacked a block cannot match byte-for-byte until that block is subtracted.
     Each block must match exactly, so a block that drifts fails loudly instead
     of silently masking a regression.
+
+    Each block sits between a blank line above and a blank line below in the
+    engine's template, and the block text itself already ends with a newline.
+    Removing the block together with its trailing blank-line newline leaves
+    the single blank line a chapter without the block would have.
     """
     for block in blocks:
         assert block in html, f"engine no longer emits this block verbatim: {block[:60]!r}"
-        html = html.replace(block, "", 1)
+        html = html.replace(block + "\n", "", 1)
     return html
 
 

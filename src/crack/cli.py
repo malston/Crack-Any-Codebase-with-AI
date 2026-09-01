@@ -44,7 +44,7 @@ def _add_analysis_arguments(parser, name):
     """Let an analysis add its own flags. Import failures must not break --help."""
     try:
         analysis = load(name)
-    except Exception:
+    except ModuleNotFoundError:
         return
     add = getattr(analysis, "add_arguments", None)
     if add is not None:
