@@ -12,10 +12,14 @@ def output_dir(root, repo_name, analysis_name):
     return os.path.join(root, repo_name, analysis_name)
 
 def run_analysis(analysis, repo_path, out_root, args):
-    """Run one analysis and write index.md + index.html. Returns the output dir.
+    """Run one analysis and write index.md + index.html. Returns (out_dir, welcome).
 
     The output directory is created before the flow runs, because some
     analyses write extra files into it during the run (ch05 writes pain.png).
+
+    welcome is the analysis's overview welcome line (shared["overview"]["welcome"]),
+    used by the `all` landing page as that analysis's overview line. The
+    product-intent analysis has no overview concept, so welcome is "" for it.
     """
     name = repo_name_of(repo_path)
     out_dir = output_dir(out_root, name, analysis.NAME)
@@ -29,4 +33,6 @@ def run_analysis(analysis, repo_path, out_root, args):
         fh.write(render_markdown(analysis, name, shared))
     with open(os.path.join(out_dir, "index.html"), "w") as fh:
         fh.write(render_html(analysis, name, shared))
-    return out_dir
+
+    welcome = (shared.get("overview") or {}).get("welcome", "")
+    return out_dir, welcome

@@ -83,10 +83,11 @@ PAGE = """<!doctype html>
 </html>
 """
 
-def _card(name, rel):
+def _card(name, rel, welcome):
+    note = welcome if welcome else NOTES.get(name, "")
     return (f'      <li><a class="report" href="{esc(rel)}">\n'
             f'        <h2>{esc(TITLES.get(name, name))}</h2>\n'
-            f'        <p>{esc(NOTES.get(name, ""))}</p>\n'
+            f'        <p>{esc(note)}</p>\n'
             f'      </a></li>')
 
 def _failures(failed):
@@ -103,8 +104,8 @@ def write_index(root, repo_name, written, failed):
     """Write the landing page linking each report. Returns its path."""
     os.makedirs(root, exist_ok=True)
     cards = "\n".join(
-        _card(name, os.path.join(os.path.basename(path), "index.html"))
-        for name, path in written.items())
+        _card(name, os.path.join(os.path.basename(path), "index.html"), welcome)
+        for name, (path, welcome) in written.items())
     n = len(written)
     sub = f"{n} of 6 reads complete." if failed else "Six reads of one codebase."
     page = PAGE.format(name=esc(repo_name), sub=esc(sub), cards=cards,

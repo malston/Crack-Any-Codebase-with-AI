@@ -64,7 +64,8 @@ def main(argv=None):
         analysis = load(name)
         print(f"\n=== {name} ===")
         try:
-            written[name] = run_analysis(analysis, args.repo_path, args.out, args)
+            out_dir, welcome = run_analysis(analysis, args.repo_path, args.out, args)
+            written[name] = (out_dir, welcome)
         except Exception as exc:               # one analysis must not stop the rest
             if args.command != "all":
                 raise
@@ -76,7 +77,7 @@ def main(argv=None):
         index = write_index(root, repo_name_of(args.repo_path), written, failed)
         print(f"\nWrote {index}")
 
-    for path in written.values():
+    for path, _welcome in written.values():
         print(f"  Open {os.path.join(path, 'index.html')}")
 
     return 1 if failed else 0

@@ -1,6 +1,5 @@
 import os
 import types
-import pytest
 from crack.core import runner
 
 def _fake_analysis(**overrides):
@@ -43,12 +42,31 @@ def test_run_analysis_writes_both_files(tmp_path, monkeypatch):
     analysis = _fake_analysis()
     args = types.SimpleNamespace(repo_path=str(repo))
 
-    out = runner.run_analysis(analysis, str(repo), str(tmp_path / "out"), args)
+    out, welcome = runner.run_analysis(analysis, str(repo), str(tmp_path / "out"), args)
 
     assert analysis._ran["count"] == 1
     assert open(os.path.join(out, "index.html")).read() == "<html>ok</html>"
     assert open(os.path.join(out, "index.md")).read() == "# ok"
     assert out.endswith(os.path.join("myrepo", "fake"))
+    assert welcome == ""
+
+def test_run_analysis_returns_overview_welcome(tmp_path, monkeypatch):
+    monkeypatch.setattr(runner, "render_html", lambda a, n, s: "<html>ok</html>")
+    monkeypatch.setattr(runner, "render_markdown", lambda a, n, s: "# ok")
+    repo = tmp_path / "myrepo"
+    repo.mkdir()
+
+    def build_flow():
+        flow = types.SimpleNamespace()
+        flow.run = lambda shared: shared.update(overview={"welcome": "This repo does X."})
+        return flow
+
+    analysis = _fake_analysis(build_flow=build_flow)
+    args = types.SimpleNamespace(repo_path=str(repo))
+
+    out, welcome = runner.run_analysis(analysis, str(repo), str(tmp_path / "out"), args)
+
+    assert welcome == "This repo does X."
 
 def test_run_analysis_applies_env_defaults(tmp_path, monkeypatch):
     monkeypatch.delenv("LLM_MAX_OUTPUT_TOKENS", raising=False)
@@ -82,6 +100,6 @@ def test_run_analysis_passes_out_dir_to_init_shared(tmp_path, monkeypatch):
     analysis = _fake_analysis(
         init_shared=lambda args, out_dir: captured.update({"out_dir": out_dir}) or
         {"repo_path": args.repo_path})
-    out = runner.run_analysis(analysis, str(repo), str(tmp_path / "out"),
-                              types.SimpleNamespace(repo_path=str(repo)))
+    out, welcome = runner.run_analysis(analysis, str(repo), str(tmp_path / "out"),
+                                       types.SimpleNamespace(repo_path=str(repo)))
     assert captured["out_dir"] == out

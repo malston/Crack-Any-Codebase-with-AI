@@ -34,7 +34,7 @@ def test_single_analysis_dispatches_to_runner(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "load", lambda name: types.SimpleNamespace(NAME=name))
     monkeypatch.setattr(
         cli, "run_analysis",
-        lambda analysis, repo_path, out_root, args: calls.append(analysis.NAME) or "/out")
+        lambda analysis, repo_path, out_root, args: calls.append(analysis.NAME) or ("/out", ""))
     assert cli.main(["backend", str(repo), "--out", str(tmp_path / "o")]) == 0
     assert calls == ["backend"]
 
@@ -47,7 +47,7 @@ def test_all_isolates_one_failing_analysis(tmp_path, monkeypatch, capsys):
         if analysis.NAME == "schema":
             raise RuntimeError("no schema found")
         ran.append(analysis.NAME)
-        return os.path.join(out_root, analysis.NAME)
+        return os.path.join(out_root, analysis.NAME), ""
 
     monkeypatch.setattr(cli, "load", lambda name: types.SimpleNamespace(
         NAME=name))
