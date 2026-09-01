@@ -94,7 +94,7 @@ def _failures(failed):
     if not failed:
         return ""
     items = "\n".join(
-        f"        <li><code>{esc(name)}</code> — {esc(exc)}</li>" for name, exc in failed)
+        f"        <li><code>{esc(name)}</code> -- {esc(exc)}</li>" for name, exc in failed)
     return ('    <section class="failed">\n'
             '      <h2>Did not run</h2>\n'
             f'      <ul>\n{items}\n      </ul>\n'

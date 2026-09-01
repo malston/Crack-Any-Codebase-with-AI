@@ -68,7 +68,7 @@ class FindRoutes(Node):
     def post(self, shared, prep_res, exec_res):
         routes, files, kept = exec_res
         assert routes.strip(), (
-            "No route/surface files found. This chapter expects a web API "
+            "No route/surface files found. This analysis expects a web API "
             "(Rails routes, Django urls, Next.js pages/api, tRPC, GraphQL, gRPC).")
         shared["routes"] = routes
         shared["route_files"] = files

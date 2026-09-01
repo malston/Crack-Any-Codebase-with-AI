@@ -32,7 +32,7 @@ class BuildBundle(Node):
     def post(self, shared, prep_res, exec_res):
         bundle, stats = exec_res
         assert bundle.strip(), (
-            "No backend source found (no routes/views/models). This chapter "
+            "No backend source found (no routes/views/models). This analysis "
             "expects a server-side backend (Django, Express, Rails, FastAPI, …).")
         shared["codebase"] = bundle
         shared["layer_counts"] = stats["counts"]

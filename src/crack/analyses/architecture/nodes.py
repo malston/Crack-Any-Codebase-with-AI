@@ -34,7 +34,7 @@ class BuildBundle(Node):
         bundle, stats = exec_res
         assert bundle.strip(), (
             "No architecture sources found (no compose/env/package/IaC). "
-            "This chapter expects a multi-service app; a single-binary tool "
+            "This analysis expects a multi-service app; a single-binary tool "
             "has no service graph to draw (§9.1).")
         shared["codebase"] = bundle
         shared["arch_stats"] = stats
