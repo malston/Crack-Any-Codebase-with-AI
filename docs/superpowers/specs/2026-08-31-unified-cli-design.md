@@ -115,8 +115,13 @@ crack all            <repo> [--out DIR]
   `all` reports it at the end and exits non-zero.
 - API keys come from the environment exactly as today
   (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`).
-- Each chapter's `LLM_MAX_OUTPUT_TOKENS` default moves into that
-  analysis's `ENV_DEFAULTS` and applies only while it runs.
+- The `LLM_MAX_OUTPUT_TOKENS` default of `32768` set by ch08, ch09, and
+  ch10 moves into those three analyses' `ENV_DEFAULTS` (empty for the
+  other three, which use the `16384` fallback in `call_llm.py`). The
+  runner sets each default before the analysis runs and restores the
+  prior environment after, so one analysis's default never leaks into
+  the next under `crack all`. A value already set by the user always
+  wins.
 
 ## Relationship to `utils/`
 
@@ -131,9 +136,10 @@ imports.
 
 - `pyproject.toml` with setuptools, `src` layout,
   `[project.scripts] crack = "crack.cli:main"`.
-- Dependencies: `pocketflow`, `pyyaml`, `markdown-it-py`, plus optional
-  extras for the provider SDKs (`anthropic`, `openai`,
-  `google-generativeai`) matching what `utils/call_llm.py` supports.
+- Dependencies: `pocketflow`, `pyyaml`, `markdown-it-py`, `pathspec`
+  (used by `crawl.py`), plus optional extras for the provider SDKs
+  (`anthropic`, `openai`, `google-genai`) matching what
+  `utils/call_llm.py` imports.
 - Python version: `requires-python = ">=3.10"`.
 - Dev install: `pip install -e ".[dev]"` (dev extra adds pytest).
 
