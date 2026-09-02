@@ -35,10 +35,17 @@ SHARED = {
     },
 }
 
+# Security fix: the engine HTML-escapes the trap-diagram mermaid source
+# before writing it into <pre class="mermaid">, closing an HTML-injection
+# hole. ch05 keeps the vulnerable unescaped form. This rewrites only the
+# benign "-->" the fixture diagram contains, not a general normalisation.
+_CHAPTER_DIAGRAM = "graph TD;\ngeneral-->slow;"
+_ENGINE_DIAGRAM = "graph TD;\ngeneral--&gt;slow;"
+
 def test_html_is_byte_identical_to_chapter(chapter_render):
     chapter = chapter_render("ch05-product-intent")
-    assert render.render_html(product_intent, "tigerbeetle", SHARED) == \
-        chapter.render_html("tigerbeetle", SHARED)
+    expected = chapter.render_html("tigerbeetle", SHARED).replace(_CHAPTER_DIAGRAM, _ENGINE_DIAGRAM)
+    assert render.render_html(product_intent, "tigerbeetle", SHARED) == expected
 
 def test_markdown_is_byte_identical_to_chapter(chapter_render):
     chapter = chapter_render("ch05-product-intent")

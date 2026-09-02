@@ -178,6 +178,13 @@ UNIFICATIONS = [
      "  th { background: var(--stone-bg); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }\n"
      "  td code { font-size: .92em; }\n"
      "\n"),
+
+    # Security fix: the engine HTML-escapes the mermaid diagram source before
+    # writing it into <pre class="mermaid">, closing an HTML-injection hole.
+    # ch07 keeps the vulnerable unescaped form. The fixture ERD below has no
+    # characters html.escape() touches, so escaping it is a no-op here; the
+    # pair is a documented old==new identity, not a real rewrite.
+    ("erDiagram\nUSERS ||--o{ POSTS : writes", "erDiagram\nUSERS ||--o{ POSTS : writes"),
 ]
 
 SHARED = {

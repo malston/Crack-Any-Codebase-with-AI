@@ -189,6 +189,12 @@ UNIFICATIONS = [
      "  th { background: var(--stone-bg); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }\n"
      "  td code { font-size: .92em; }\n"
      "\n"),
+
+    # Security fix: the engine HTML-escapes the extracted mermaid diagram
+    # source before writing it into <pre class="mermaid">, closing an
+    # HTML-injection hole. ch08 keeps the vulnerable unescaped form; this
+    # rewrites only the benign "->>" the fixture sequence diagram contains.
+    ("sequenceDiagram\nA->>B: POST", "sequenceDiagram\nA-&gt;&gt;B: POST"),
 ]
 
 SHARED = {

@@ -35,10 +35,17 @@ SHARED = {
                             "The graveyard": "The bets they walked away from."}},
 }
 
+# Security fix: the engine HTML-escapes mermaid diagram source before writing
+# it into <pre class="mermaid">, closing an HTML-injection hole. ch06 keeps
+# the vulnerable unescaped form. This rewrites only the benign "-->" the
+# fixture diagram contains, not a general whitespace/HTML normalisation.
+_CHAPTER_DIAGRAM = "graph LR;\ncache-->disk;"
+_ENGINE_DIAGRAM = "graph LR;\ncache--&gt;disk;"
+
 def test_html_is_byte_identical_to_chapter(chapter_render):
     chapter = chapter_render("ch06-git-history")
-    assert render.render_html(git_history, "redis", SHARED) == \
-        chapter.render_html("redis", SHARED)
+    expected = chapter.render_html("redis", SHARED).replace(_CHAPTER_DIAGRAM, _ENGINE_DIAGRAM)
+    assert render.render_html(git_history, "redis", SHARED) == expected
 
 def test_markdown_is_byte_identical_to_chapter(chapter_render):
     chapter = chapter_render("ch06-git-history")

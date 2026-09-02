@@ -67,6 +67,12 @@ UNIFICATIONS = [
      "  .card-body ul, .card-body ol { margin: .5em 0; padding-left: 1.3em; }\n"
      "  .card-body li { margin: .28em 0; color: #344054; line-height: 1.55; }\n"
      "\n"),
+
+    # Security fix: the engine HTML-escapes the mermaid diagram source before
+    # writing it into <pre class="mermaid">, closing an HTML-injection hole.
+    # ch10 keeps the vulnerable unescaped form; this rewrites only the
+    # benign "-->" the fixture diagram happens to contain.
+    ("graph LR;\nroute-->handler;", "graph LR;\nroute--&gt;handler;"),
 ]
 
 SHARED = {
