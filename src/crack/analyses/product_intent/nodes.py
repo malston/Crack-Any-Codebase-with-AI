@@ -14,13 +14,13 @@ import yaml
 
 from pocketflow import Node
 
-from crack.core import call_llm, call_image, crawl
+from crack.core import call_llm, call_image, crawl, read_prompt
 
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), 'prompts')
 
 
 def load_prompt(name):
-    return open(os.path.join(PROMPTS_DIR, name)).read()
+    return read_prompt(PROMPTS_DIR, name)
 
 
 def parse_yaml(text):
