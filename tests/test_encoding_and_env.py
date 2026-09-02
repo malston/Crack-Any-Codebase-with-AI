@@ -35,6 +35,23 @@ def test_read_prompt_survives_c_locale():
     assert result.returncode == 0, result.stderr
 
 
+def test_every_analysis_loads_its_prompts_under_c_locale():
+    """`load_prompt` must open UTF-8 in every analysis, including one that stops
+    routing through `crack.core.read_prompt`."""
+    code = (
+        "import importlib, os\n"
+        "from crack.analyses import ANALYSIS_NAMES\n"
+        "for name in ANALYSIS_NAMES:\n"
+        "    module = f\"crack.analyses.{name.replace('-', '_')}.nodes\"\n"
+        "    nodes = importlib.import_module(module)\n"
+        "    for f in sorted(os.listdir(nodes.PROMPTS_DIR)):\n"
+        "        nodes.load_prompt(f)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], env=_c_locale_env(), capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
 def test_write_index_survives_c_locale(tmp_path):
     """The landing page write must survive a C locale even with non-ASCII input."""
     code = (

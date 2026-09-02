@@ -1,7 +1,9 @@
 import os
+import time
 import types
 import pytest
 from crack import cli
+from crack.analyses import ANALYSIS_NAMES
 
 def test_parser_has_all_seven_subcommands():
     parser = cli.build_parser()
@@ -106,6 +108,70 @@ def test_all_isolates_an_analysis_that_fails_to_import(tmp_path, monkeypatch, ca
     assert len(ran) == 5
     assert "schema" not in ran
     assert "schema" in capsys.readouterr().err
+
+def test_all_reports_every_analysis_failing(tmp_path, monkeypatch, capsys):
+    """Six-of-six failures, with nothing about the CLI mocked.
+
+    The isolation tests above patch `cli.load`, `cli.run_analysis` and
+    `write_index`, so they cannot see a fault in the real wiring. Here an empty directory and an empty
+    environment make every analysis fail on its own terms — a crawler that
+    finds nothing, or `call_llm` with no provider key — and the landing page
+    still has to be written and the exit code still has to be 1.
+    """
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+                "LLM_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    # The asserts that stop most analyses live in post(), which pocketflow does
+    # not retry. Two nodes reach an LLM call and back off for two seconds a try.
+    monkeypatch.setattr(time, "sleep", lambda *_a, **_kw: None)
+    repo = tmp_path / "hollow"
+    repo.mkdir()
+    out = tmp_path / "o"
+
+    code = cli.main(["all", str(repo), "--out", str(out)])
+
+    assert code == 1
+    err = capsys.readouterr().err
+    for name in ANALYSIS_NAMES:
+        assert f"crack: {name} failed" in err
+
+    index = (out / "hollow" / "index.html").read_text(encoding="utf-8")
+    assert "Did not run" in index
+    for name in ANALYSIS_NAMES:
+        assert name in index
+    assert not any((out / "hollow" / name).is_dir() and
+                   (out / "hollow" / name / "index.html").exists()
+                   for name in ANALYSIS_NAMES)
+
+
+def test_a_single_analysis_failure_propagates_instead_of_being_swallowed(
+        tmp_path, monkeypatch):
+    """`all` isolates a failure so the other five still run; one named analysis
+    has nothing to isolate it from, so its error must reach the caller."""
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+                "LLM_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(time, "sleep", lambda *_a, **_kw: None)
+    repo = tmp_path / "hollow"
+    repo.mkdir()
+
+    with pytest.raises(AssertionError, match="No route/surface files found"):
+        cli.main(["interfaces", str(repo), "--out", str(tmp_path / "o")])
+
+
+def test_a_single_analysis_writes_no_index_page(tmp_path, monkeypatch):
+    """The landing page belongs to `all`; one analysis writes only its own report."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    out = tmp_path / "o"
+    monkeypatch.setattr(cli, "load", lambda name: types.SimpleNamespace(NAME=name))
+    monkeypatch.setattr(
+        cli, "run_analysis",
+        lambda analysis, repo_path, out_root, args: (str(out / analysis.NAME), ""))
+
+    assert cli.main(["backend", str(repo), "--out", str(out)]) == 0
+    assert not (out / "r" / "index.html").exists()
+
 
 def test_per_analysis_flags_parse_now_that_analyses_exist():
     """Deferred from Task 6: these flags come from analyses built in Tasks 10-12."""

@@ -14,13 +14,13 @@ import yaml
 
 from pocketflow import Node
 
-from crack.core import call_llm, call_image, crawl
+from crack.core import call_llm, call_image, crawl, read_prompt
 
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), 'prompts')
 
 
 def load_prompt(name):
-    return open(os.path.join(PROMPTS_DIR, name)).read()
+    return read_prompt(PROMPTS_DIR, name)
 
 
 def parse_yaml(text):
@@ -108,6 +108,11 @@ class CompetitivePositioning(Node):
             assert "dimensions" in result and len(result["dimensions"]) >= 3
             for k in ("sacrifices", "gains", "why_incumbents_cannot_copy"):
                 assert k in result, f"missing {k} in positioning"
+            # Each dimension must be {name, definition}: the renderer reads both,
+            # so a bare string would pass validation and raise in render.py.
+            for d in result["dimensions"]:
+                assert isinstance(d, dict) and "name" in d and "definition" in d, \
+                    f"dimension missing name/definition: {d!r}"
             # Each cell must be {verdict, detail}. Reject the old flat-string shape so a retry kicks in.
             for c in result["competitors"]:
                 for cell in c.get("cells", []):
