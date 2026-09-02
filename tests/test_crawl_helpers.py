@@ -1,15 +1,16 @@
 """Unit tests for the filesystem and git helpers the flows lean on.
 
-These decide what the model is even shown — which files count as a backend
-layer, which era a commit belongs to, which bulk deletion is a killed feature
-rather than a deleted `node_modules`. All of it runs before any LLM call, and
-a wrong answer here is invisible in the rendered page.
+These decide what the model is shown and how its answer is applied: which
+files count as a backend layer, which era a commit belongs to, which bulk
+deletion is a killed feature rather than a deleted `node_modules`. A wrong
+answer here is invisible in the rendered page.
 """
 import os
 
 import pytest
 
 from crack.analyses.backend import backend_crawl as bc
+from crack.analyses.interfaces import routes_find as rf
 from crack.analyses.git_history.nodes import _era_for, _is_noise_deletion
 
 
@@ -54,12 +55,60 @@ def test_classify_returns_none_for_files_on_no_layer(rel):
     assert bc.classify(rel) is None
 
 
-def test_classify_needs_a_parent_dir_above_a_next_js_api_folder():
-    """The convention is matched as `/pages/api/`, so a repo whose pages tree
-    sits at the root is missed. `routes_find.is_route_file` reads it the same
-    way, so the two crawlers agree."""
+# The path conventions each crawler matches as a substring with a leading
+# slash, listed here at the repo root where that match fails. `classify` reads
+# only the Next.js pages tree; `is_route_file` reads all three.
+ROOT_LEVEL_NEXT_PAGES = "pages/api/notes.ts"
+ROOT_LEVEL_CONVENTIONS = [ROOT_LEVEL_NEXT_PAGES, "app/api/notes/route.ts",
+                          "cmd/server/main.go"]
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "the Next.js pages tree is matched as the substring `/pages/api/`, so a "
+    "repo that keeps it at the root is missed. That is the stock layout."))
+def test_classify_reads_a_root_level_next_js_pages_tree():
+    assert bc.classify(ROOT_LEVEL_NEXT_PAGES) == "route"
+
+
+def test_classify_reads_a_next_js_pages_tree_below_a_parent_dir():
     assert bc.classify("src/pages/api/notes.ts") == "route"
-    assert bc.classify("pages/api/notes.ts") is None
+
+
+# --- routes_find.is_route_file ------------------------------------------
+
+@pytest.mark.parametrize("rel", [
+    "config/urls.py",
+    "config/routes.rb",
+    "src/api/routes.ts",
+    "src/api/admin_router.ts",
+    "src/pages/api/notes.ts",
+    "src/app/notes/route.ts",
+    "src/cmd/server/main.go",
+    "proto/notes.proto",
+    "graphql/schema.graphql",
+])
+def test_is_route_file_recognises_an_entry_point_convention(rel):
+    assert rf.is_route_file(rel)
+
+
+@pytest.mark.parametrize("rel", [
+    "notes/views/notes.py",
+    "src/api/routes.test.ts",
+    "src/api/routes.spec.ts",
+    "src/pages/api/notes.md",
+])
+def test_is_route_file_rejects_files_that_declare_no_entry_points(rel):
+    assert not rf.is_route_file(rel)
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "`/pages/api/`, `/app/` and `/cmd/` are matched as substrings with a "
+    "leading slash, so a repo that keeps any of them at its root is missed. "
+    "That is the stock layout for both Next.js routers and for Go, and "
+    "`FindRoutes` then refuses to run at all."))
+@pytest.mark.parametrize("rel", ROOT_LEVEL_CONVENTIONS)
+def test_is_route_file_reads_a_root_level_framework_convention(rel):
+    assert rf.is_route_file(rel)
 
 
 def test_classify_is_case_insensitive_about_the_path():

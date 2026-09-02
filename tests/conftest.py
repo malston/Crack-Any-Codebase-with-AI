@@ -9,6 +9,8 @@ import time
 
 import pytest
 
+from crack.analyses import ANALYSIS_NAMES
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 @pytest.fixture(scope="session")
@@ -112,10 +114,10 @@ CREATE TABLE notes (
 '''
 
 # One file per backend layer, laid out on the path conventions the crawlers key
-# off: a route manifest at `urls.py`, `/views/` for handlers, `/services/` for
-# business logic, `models.py` for the database layer, and a serializer for the
-# response layer. Without these the layer counts are empty and a flow test
-# proves nothing.
+# off: a route manifest at `urls.py`, `/middleware/` for the auth decorator,
+# `/views/` for handlers, `/services/` for business logic, `models.py` for the
+# database layer, and `/serializers/` for the response layer. Without these the
+# layer counts are empty and a flow test proves nothing.
 LAYERS = {
     "config/urls.py": '''\
 from notes.views.notes import create_note, read_note
@@ -239,19 +241,13 @@ def _git(repo, *args):
                    capture_output=True, text=True)
 
 
-# Every module that holds its own `call_llm` name. `from crack.core import
+# Every module that binds `call_llm` at a call site. `from crack.core import
 # call_llm` binds the function into each importer, so patching one site is not
-# enough — the fixture imports the whole set and patches each in turn.
-LLM_MODULES = (
-    "crack.core.llm",
-    "crack.core.overview",
-    "crack.analyses.architecture.nodes",
-    "crack.analyses.backend.nodes",
-    "crack.analyses.git_history.nodes",
-    "crack.analyses.interfaces.nodes",
-    "crack.analyses.product_intent.nodes",
-    "crack.analyses.schema.nodes",
-)
+# enough — the fixture imports the whole set and patches each in turn. The
+# analysis half is derived from the registry, so a seventh analysis is covered
+# without editing this file.
+LLM_MODULES = ("crack.core.llm", "crack.core.overview") + tuple(
+    f"crack.analyses.{name.replace('-', '_')}.nodes" for name in ANALYSIS_NAMES)
 
 PROMPT_TAG = "<<{}>>\n"
 
@@ -302,7 +298,7 @@ def stub_llm(monkeypatch):
 def _write(repo, rel, text):
     path = repo / rel
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
 
 
 @pytest.fixture(scope="session")

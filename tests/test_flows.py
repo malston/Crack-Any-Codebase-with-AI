@@ -1,10 +1,9 @@
 """Wire-level tests: run each analysis's real flow with the model stubbed out.
 
 The parity tests call renderers directly with a hand-built `shared` dict, so
-nothing else in the suite constructs a flow, runs a node's prep/exec/post, or
-touches a crawl helper. Every runtime bug found while building the CLI lived in
-that gap: a dropped import, a wrong helper import, a prompts directory computed
-from the old chapter layout. These tests close it — they read the real prompt
+no test that runs without a provider key constructs a flow, runs a node's
+prep/exec/post, or touches a crawl helper (`test_smoke.py` does, but only with
+a real key). These tests close that gap without one: they read the real prompt
 files off disk, run the real crawlers over a fixture repo, and only the model's
 replies are canned.
 """
@@ -56,7 +55,12 @@ def replies(by_prompt, extra=()):
 
 
 def run_flow(name, reply, stub_llm, repo, out_dir, **args):
-    """Run one analysis's real flow end to end. Returns (shared, prompts seen)."""
+    """Run one analysis's real flow end to end. Returns (shared, prompts seen).
+
+    `prompts` records every attempted call, including ones a node swallowed or
+    retried, so asserting its length catches a node that starts or stops calling
+    the model.
+    """
     analysis = importlib.import_module(f"crack.analyses.{name}")
     prompts = stub_llm(reply)
     shared = analysis.init_shared(
@@ -69,6 +73,17 @@ def assert_overview(shared):
     """OverviewNode degrades silently, so a broken run still looks like a pass."""
     assert shared["overview"]["welcome"], (
         "no welcome copy — the overview node fell back after failing twice")
+
+
+def assert_routed(prompts, marker):
+    """A prompt routed by text, not by filename tag, was reached and matched.
+
+    `EndpointSequence` wraps its pick call in a bare `except Exception: pass`,
+    which swallows the router's AssertionError as readily as a bad reply. Without
+    this check, a reworded prompt would leave the test passing on nothing.
+    """
+    assert any(marker in p for p in prompts), (
+        f"no prompt contained {marker!r} — the router no longer matches it")
 
 
 # --- backend (ch10) ------------------------------------------------------
@@ -102,7 +117,7 @@ def test_backend_flow_fills_every_key_the_renderer_reads(
 @pytest.mark.xfail(strict=True, reason=(
     "backend_crawl.build_bundle emits its section headers even when it found "
     "no files, so `assert bundle.strip()` never fires and the model is asked "
-    "to describe an empty bundle. Inherited from ch10."))
+    "to describe an empty bundle."))
 def test_backend_refuses_a_repo_with_no_backend(stub_llm, tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()
@@ -173,21 +188,25 @@ def test_interfaces_flow_fills_every_key_the_renderer_reads(
     assert shared["sequence_endpoint"] == "POST /notes"
     assert shared["sequence_files"] == ["notes/views/notes.py"]
     assert "sequenceDiagram" in shared["sequence_md"]
+    assert_routed(prompts, PICK_MARKER)
     assert_overview(shared)
     assert len(prompts) == 5
 
 
 def test_interfaces_still_draws_a_sequence_when_the_pick_is_unusable(
         stub_llm, fixture_repo, tmp_path):
-    """The endpoint pick is wrapped in a bare `except Exception: pass`, so a
-    junk reply leaves the diagram to be drawn from route names alone."""
-    shared, _ = run_flow(
+    """The endpoint pick is wrapped in a bare `except Exception: pass`, so a junk
+    reply leaves the diagram to be drawn from the route sources alone, with no
+    handler body."""
+    shared, prompts = run_flow(
         "interfaces", replies(INTERFACES_REPLIES, [(PICK_MARKER, "not yaml at all")]),
         stub_llm, fixture_repo, tmp_path)
 
+    assert_routed(prompts, PICK_MARKER)
     assert shared["sequence_endpoint"] == ""
     assert shared["sequence_files"] == []
     assert "sequenceDiagram" in shared["sequence_md"]
+    assert_overview(shared)
 
 
 def test_interfaces_refuses_a_repo_with_no_route_files(stub_llm, tmp_path):
@@ -246,6 +265,7 @@ def test_schema_declines_to_cluster_too_few_migrations(
 
     assert shared["migration_md"] is None
     assert not any("<<migration-acts.md>>" in p for p in prompts)
+    assert_overview(shared)
 
 
 def test_schema_refuses_a_repo_with_no_schema(stub_llm, tmp_path):
@@ -309,6 +329,7 @@ def test_git_history_leaves_the_graveyard_empty_without_a_bulk_deletion(
                          str(repo), tmp_path)
     assert shared["bulk_dels"] == []
     assert shared["graves"] == []
+    assert_overview(shared)
 
 
 # --- product_intent (ch05) -----------------------------------------------

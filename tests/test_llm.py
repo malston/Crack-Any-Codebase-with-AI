@@ -1,4 +1,8 @@
-"""Unit tests for the LLM-node plumbing every analysis imports."""
+"""Unit tests for the plumbing in `crack.core.llm`.
+
+The product-intent analysis keeps private copies of `parse_yaml` and
+`yaml_call` (`analyses/product_intent/nodes.py`); nothing here covers those.
+"""
 import json
 
 import pytest
@@ -17,8 +21,10 @@ def test_fill_stringifies_non_string_values():
     assert llm.fill("count={n}", n=7) == "count=7"
 
 
-def test_read_prompt_reads_utf8_regardless_of_locale(tmp_path, monkeypatch):
-    monkeypatch.setenv("LC_ALL", "C")
+def test_read_prompt_reads_utf8_content(tmp_path):
+    """The locale side of this is asserted in tests/test_encoding_and_env.py,
+    which forces a C locale in a subprocess. Setting LC_ALL in this process
+    cannot change an encoding CPython fixed at interpreter startup."""
     (tmp_path / "p.md").write_text("café — naïve", encoding="utf-8")
     assert llm.read_prompt(str(tmp_path), "p.md") == "café — naïve"
 
@@ -156,5 +162,5 @@ def test_yaml_call_lets_network_errors_bubble_to_the_node(monkeypatch):
 
 
 def test_yaml_is_the_dependency_the_module_actually_imports():
-    """A dropped `import yaml` in this module was one of the shipped bugs."""
+    """The YAML helpers resolve the real package, not a shadowed name."""
     assert llm.yaml is yaml

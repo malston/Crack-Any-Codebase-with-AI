@@ -36,8 +36,8 @@ def test_read_prompt_survives_c_locale():
 
 
 def test_every_analysis_loads_its_prompts_under_c_locale():
-    """`load_prompt` must open UTF-8 in every analysis, not only the five that
-    route through `crack.core.read_prompt`."""
+    """`load_prompt` must open UTF-8 in every analysis, including one that stops
+    routing through `crack.core.read_prompt`."""
     code = (
         "import importlib, os\n"
         "for name in ('architecture', 'backend', 'git_history', 'interfaces',\n"
