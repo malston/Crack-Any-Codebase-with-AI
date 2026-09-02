@@ -13,6 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from crack.core.render import render_html, render_markdown
+from crack.core.runner import repo_name_of
+
 # The opening clause of `crack.core.overview._PROMPT`; that prompt is a module
 # constant rather than a file, so it is routed by its text.
 OVERVIEW_MARKER = "writing the overview at the top of a page"
@@ -60,12 +63,32 @@ def run_flow(name, reply, stub_llm, repo, out_dir, **args):
     `prompts` records every attempted call, including ones a node swallowed or
     retried, so asserting its length catches a node that starts or stops calling
     the model.
+
+    The flow's own `shared` is then handed to both renderers. The parity tests
+    build their `shared` as a literal, so without this nothing connects what a
+    flow writes to what a renderer reads, and a key the flow stopped setting
+    would pass both suites.
     """
     analysis = importlib.import_module(f"crack.analyses.{name}")
     prompts = stub_llm(reply)
     shared = analysis.init_shared(
         SimpleNamespace(repo_path=repo, **args), str(out_dir))
     analysis.build_flow().run(shared)
+
+    repo_name = repo_name_of(repo)
+    html = render_html(analysis, repo_name, shared)
+    markdown = render_markdown(analysis, repo_name, shared)
+    assert html.lower().startswith("<!doctype html>"), f"{name} rendered no page"
+    assert len(markdown) > 200, f"{name} rendered a near-empty report"
+
+    # A card-family page declares the shared key behind every section. The
+    # renderers read those with .get(), so a flow that stops filling one emits
+    # a silently empty section instead of failing.
+    for section in getattr(analysis, "SECTIONS", ()):
+        if section.when_empty == "always":
+            assert shared.get(section.key), (
+                f"{name} section {section.number} '{section.label}' declares "
+                f"shared[{section.key!r}], which the flow left empty")
     return shared, prompts
 
 
@@ -309,17 +332,23 @@ def test_git_history_flow_fills_every_key_the_renderer_reads(
     assert len(prompts) == 4
 
 
-def test_git_history_leaves_the_graveyard_empty_without_a_bulk_deletion(
-        stub_llm, tmp_path):
+def _thin_repo(tmp_path, name):
+    """A one-commit git repo, for the cases where the history is not the point."""
     from tests.conftest import _git
-    repo = tmp_path / "thin"
+    repo = tmp_path / name
     repo.mkdir()
     _git(repo, "init", "-q")
     _git(repo, "config", "user.email", "test@example.com")
     _git(repo, "config", "user.name", "Test")
-    (repo / "main.py").write_text("print('hi')\n")
+    (repo / "main.py").write_text("print('hi')\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "feat: the whole thing")
+    return repo
+
+
+def test_git_history_leaves_the_graveyard_empty_without_a_bulk_deletion(
+        stub_llm, tmp_path):
+    repo = _thin_repo(tmp_path, "thin")
 
     shared, _ = run_flow("git_history", replies(GIT_HISTORY_REPLIES), stub_llm,
                          str(repo), tmp_path)
@@ -335,28 +364,36 @@ PRODUCT_INTENT_REPLIES = {
     "variant-sentence.md": "Notes, but the schema explains itself.",
     "competitive-positioning.md": '''```yaml
 competitors:
+  - name: "Notes"
+    cells:
+      - verdict: "yes"
+        detail: "One typed table."
+      - verdict: "yes"
+        detail: "Any client can read it."
+      - verdict: "no"
+        detail: "Plain text only."
   - name: "A wiki"
     cells:
       - verdict: "no"
-        detail: "Prose only, no schema."
+        detail: "Prose, no schema."
       - verdict: "partial"
         detail: "Search, but no structure."
       - verdict: "yes"
-        detail: "Anyone can edit."
-  - name: "A notebook"
-    cells:
-      - verdict: "yes"
-        detail: "Structured cells."
-      - verdict: "no"
-        detail: "No shared surface."
-      - verdict: "partial"
-        detail: "Export only."
+        detail: "Rich formatting."
 dimensions:
-  - "Structured storage"
-  - "Shared access"
-  - "Portability"
-sacrifices: "Rich text formatting."
-gains: "One table anyone can query."
+  - name: "Structured storage"
+    definition: "Whether a row has a declared shape."
+  - name: "Shared access"
+    definition: "Whether another program can read it."
+  - name: "Rich text"
+    definition: "Whether a note carries formatting."
+diagram: "graph TD;\nprose-->unqueryable;"
+sacrifices:
+  - "Rich text formatting"
+  - "Ad-hoc page structure"
+gains:
+  - "One table anyone can query"
+  - "A schema that explains itself"
 why_incumbents_cannot_copy: "Their format is the product."
 ```''',
     "surprises-and-absences.md": '''```yaml
@@ -382,8 +419,9 @@ def test_product_intent_flow_fills_every_key_the_renderer_reads(
     assert shared["pain"].startswith("Someone re-reads")
     assert shared["variant"] == "Notes, but the schema explains itself."
     assert [c["name"] for c in shared["positioning"]["competitors"]] == [
-        "A wiki", "A notebook"]
-    assert len(shared["positioning"]["dimensions"]) == 3
+        "Notes", "A wiki"]
+    assert [d["name"] for d in shared["positioning"]["dimensions"]] == [
+        "Structured storage", "Shared access", "Rich text"]
     assert shared["surprises"]["present"][0]["headline"] == "Auth is a decorator"
     assert shared["surprises"]["absent"][0]["headline"] == "No pagination"
     # This analysis has no overview node; the image needs Gemini, which the
@@ -391,3 +429,128 @@ def test_product_intent_flow_fills_every_key_the_renderer_reads(
     assert "overview" not in shared
     assert shared["pain_image_path"] is None
     assert len(prompts) == 4
+
+
+STRING_DIMENSIONS = PRODUCT_INTENT_REPLIES | {
+    "competitive-positioning.md": '''```yaml
+competitors:
+  - name: "Notes"
+    cells:
+      - verdict: "yes"
+        detail: "One typed table."
+  - name: "A wiki"
+    cells:
+      - verdict: "no"
+        detail: "Prose, no schema."
+dimensions:
+  - "Structured storage"
+  - "Shared access"
+  - "Rich text"
+sacrifices:
+  - "Rich text formatting"
+gains:
+  - "One table anyone can query"
+why_incumbents_cannot_copy: "Their format is the product."
+```''',
+}
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "CompetitivePositioning.normalize counts the dimensions but never checks "
+    "their shape, while the renderer reads d['name'] and d['definition']. A "
+    "model that answers with bare strings passes validation and every retry, "
+    "then raises TypeError in render.py after the calls are paid for."))
+def test_product_intent_rejects_dimensions_the_renderer_cannot_read(
+        stub_llm, fixture_repo, tmp_path):
+    with pytest.raises(AssertionError):
+        run_flow("product_intent", replies(STRING_DIMENSIONS), stub_llm,
+                 fixture_repo, tmp_path, include=[], exclude=[])
+
+
+def test_a_failed_overview_leaves_a_page_that_still_renders(
+        stub_llm, fixture_repo, tmp_path, monkeypatch, capsys):
+    """`OverviewNode.exec_fallback` degrades in silence, so the shape it returns
+    is the only thing standing between a failed call and a broken page. Every
+    renderer reads `(shared.get("overview") or {}).get("welcome", "")`."""
+    from crack.core import nodes as core_nodes
+
+    def refuse(*_a, **_kw):
+        raise RuntimeError("overview call failed")
+    monkeypatch.setattr(core_nodes, "write_overview", refuse)
+
+    analysis = importlib.import_module("crack.analyses.backend")
+    stub_llm(replies(BACKEND_REPLIES))
+    shared = analysis.init_shared(
+        SimpleNamespace(repo_path=fixture_repo), str(tmp_path))
+    analysis.build_flow().run(shared)
+
+    assert shared["overview"] == {"welcome": "", "intros": {}}
+    name = repo_name_of(fixture_repo)
+    assert render_html(analysis, name, shared).lower().startswith("<!doctype html>")
+    assert len(render_markdown(analysis, name, shared)) > 200
+
+
+def test_schema_deep_dive_batches_the_tables_it_reviews(
+        stub_llm, fixture_repo, tmp_path, monkeypatch):
+    """One card per table would overflow the model's output budget, so tables
+    are reviewed a few at a time. The fixture has one table, so the batch
+    boundary only shows with a longer list."""
+    from crack.analyses.schema import nodes as schema_nodes
+    tables = [f"t{i}" for i in range(9)]
+    monkeypatch.setattr(schema_nodes, "tables_from_erd", lambda erd, known: tables)
+
+    shared, prompts = run_flow(
+        "schema", replies(SCHEMA_REPLIES), stub_llm, fixture_repo, tmp_path,
+        schema=None)
+
+    assert shared["table_list"] == tables
+    deep_dive = [p for p in prompts if "<<table-deep-dive.md>>" in p]
+    assert len(deep_dive) == 3, "9 tables at BATCH=4 is three calls"
+    assert "`t0`, `t1`, `t2`, `t3`" in deep_dive[0]
+    assert "`t4`, `t5`, `t6`, `t7`" in deep_dive[1]
+    assert "table_list" not in deep_dive[2] and "`t8`" in deep_dive[2]
+    assert shared["deepdive_md"].count("###") == 3
+
+
+def test_git_history_keeps_one_grave_per_source_area(
+        stub_llm, tmp_path, monkeypatch):
+    """Six variants of one deletion is not a graveyard, so the candidates are
+    de-duplicated by source area and capped."""
+    from crack.analyses.git_history import nodes as gh_nodes
+
+    def deletions(*scopes):
+        return [{"hash": f"{i:07d}", "date": "2024-01-01", "month": "2024-01",
+                 "author": "Test", "subject": f"drop {scope}",
+                 "files": [f"{scope}/f{n}.py" for n in range(10)],
+                 "count": 10, "scope": scope}
+                for i, scope in enumerate(scopes)]
+
+    monkeypatch.setattr(gh_nodes.gl, "bulk_changes", lambda repo, status, **kw:
+                        deletions("legacy/exports", "legacy/exports",
+                                  "legacy/imports", "billing/invoices")
+                        if status == "D" else [])
+    monkeypatch.setattr(gh_nodes.gl, "show_diff", lambda *a, **kw: "-removed\n")
+
+    repo = _thin_repo(tmp_path, "areas")
+    shared, _ = run_flow("git_history", replies(GIT_HISTORY_REPLIES), stub_llm,
+                         str(repo), tmp_path)
+
+    assert [g["commit"]["scope"] for g in shared["graves"]] == [
+        "legacy/exports", "legacy/imports", "billing/invoices"]
+
+
+def test_git_history_caps_the_number_of_graves(stub_llm, tmp_path, monkeypatch):
+    from crack.analyses.git_history import nodes as gh_nodes
+    scopes = [f"area{i}/sub" for i in range(5)]
+    monkeypatch.setattr(gh_nodes.gl, "bulk_changes", lambda repo, status, **kw: [
+        {"hash": f"{i:07d}", "date": "2024-01-01", "month": "2024-01",
+         "author": "Test", "subject": f"drop {s}",
+         "files": [f"{s}/f{n}.py" for n in range(10)], "count": 10, "scope": s}
+        for i, s in enumerate(scopes)] if status == "D" else [])
+    monkeypatch.setattr(gh_nodes.gl, "show_diff", lambda *a, **kw: "-removed\n")
+
+    repo = _thin_repo(tmp_path, "capped")
+    shared, _ = run_flow("git_history", replies(GIT_HISTORY_REPLIES), stub_llm,
+                         str(repo), tmp_path, max_graves=2)
+
+    assert len(shared["graves"]) == 2

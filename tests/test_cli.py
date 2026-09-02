@@ -144,6 +144,35 @@ def test_all_reports_every_analysis_failing(tmp_path, monkeypatch, capsys):
                    for name in ANALYSIS_NAMES)
 
 
+def test_a_single_analysis_failure_propagates_instead_of_being_swallowed(
+        tmp_path, monkeypatch):
+    """`all` isolates a failure so the other five still run; one named analysis
+    has nothing to isolate it from, so its error must reach the caller."""
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+                "LLM_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setattr(time, "sleep", lambda *_a, **_kw: None)
+    repo = tmp_path / "hollow"
+    repo.mkdir()
+
+    with pytest.raises(AssertionError, match="No route/surface files found"):
+        cli.main(["interfaces", str(repo), "--out", str(tmp_path / "o")])
+
+
+def test_a_single_analysis_writes_no_index_page(tmp_path, monkeypatch):
+    """The landing page belongs to `all`; one analysis writes only its own report."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    out = tmp_path / "o"
+    monkeypatch.setattr(cli, "load", lambda name: types.SimpleNamespace(NAME=name))
+    monkeypatch.setattr(
+        cli, "run_analysis",
+        lambda analysis, repo_path, out_root, args: (str(out / analysis.NAME), ""))
+
+    assert cli.main(["backend", str(repo), "--out", str(out)]) == 0
+    assert not (out / "r" / "index.html").exists()
+
+
 def test_per_analysis_flags_parse_now_that_analyses_exist():
     """Deferred from Task 6: these flags come from analyses built in Tasks 10-12."""
     parser = cli.build_parser()

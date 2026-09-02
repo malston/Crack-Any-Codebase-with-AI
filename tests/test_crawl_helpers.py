@@ -206,3 +206,17 @@ def test_one_extra_skipped_file_tips_a_tie_into_noise():
 def test_a_skip_directory_counts_anywhere_in_the_path():
     assert _is_noise_deletion(_deletion(
         "packages/web/node_modules/a.js", "packages/api/vendor/b.rb"))
+
+
+def test_arch_sdk_grep_reports_nothing_outside_a_git_repo(tmp_path):
+    """`_sdk_grep` returns "" for a failed `git grep` and for one that matched
+    nothing alike, so a missing git binary silently costs the architecture
+    bundle its strongest evidence. This pins the current behaviour."""
+    (tmp_path / "app.py").write_text("import stripe\n", encoding="utf-8")
+    assert ac._sdk_grep(str(tmp_path)) == ""
+
+
+def test_arch_sdk_grep_finds_an_sdk_import_in_a_git_repo(fixture_repo):
+    lines = ac._sdk_grep(fixture_repo)
+    assert "notes/billing.js" in lines
+    assert "stripe" in lines
