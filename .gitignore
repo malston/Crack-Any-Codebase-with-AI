@@ -21,3 +21,7 @@ utils/.cache/
 # Temp dumps from running the chapters
 *.dump.txt
 *-dump.txt
+
+# Build and CLI-run artifacts
+build/
+crack-output/
