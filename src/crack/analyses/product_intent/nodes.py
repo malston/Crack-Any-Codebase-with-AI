@@ -108,6 +108,11 @@ class CompetitivePositioning(Node):
             assert "dimensions" in result and len(result["dimensions"]) >= 3
             for k in ("sacrifices", "gains", "why_incumbents_cannot_copy"):
                 assert k in result, f"missing {k} in positioning"
+            # Each dimension must be {name, definition}: the renderer reads both,
+            # so a bare string would pass validation and raise in render.py.
+            for d in result["dimensions"]:
+                assert isinstance(d, dict) and "name" in d and "definition" in d, \
+                    f"dimension missing name/definition: {d!r}"
             # Each cell must be {verdict, detail}. Reject the old flat-string shape so a retry kicks in.
             for c in result["competitors"]:
                 for cell in c.get("cells", []):

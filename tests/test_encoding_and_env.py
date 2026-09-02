@@ -40,9 +40,10 @@ def test_every_analysis_loads_its_prompts_under_c_locale():
     routing through `crack.core.read_prompt`."""
     code = (
         "import importlib, os\n"
-        "for name in ('architecture', 'backend', 'git_history', 'interfaces',\n"
-        "             'product_intent', 'schema'):\n"
-        "    nodes = importlib.import_module(f'crack.analyses.{name}.nodes')\n"
+        "from crack.analyses import ANALYSIS_NAMES\n"
+        "for name in ANALYSIS_NAMES:\n"
+        "    module = f\"crack.analyses.{name.replace('-', '_')}.nodes\"\n"
+        "    nodes = importlib.import_module(module)\n"
         "    for f in sorted(os.listdir(nodes.PROMPTS_DIR)):\n"
         "        nodes.load_prompt(f)\n"
     )

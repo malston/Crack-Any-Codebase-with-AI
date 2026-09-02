@@ -455,13 +455,12 @@ why_incumbents_cannot_copy: "Their format is the product."
 }
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "CompetitivePositioning.normalize counts the dimensions but never checks "
-    "their shape, while the renderer reads d['name'] and d['definition']. A "
-    "model that answers with bare strings passes validation and every retry, "
-    "then raises TypeError in render.py after the calls are paid for."))
 def test_product_intent_rejects_dimensions_the_renderer_cannot_read(
         stub_llm, fixture_repo, tmp_path):
+    """The renderer reads d['name'] and d['definition'], so a reply that answers
+    with bare strings has to be rejected in normalize. Counting the dimensions
+    without checking their shape passes every retry and then raises TypeError in
+    render.py, after the calls are paid for."""
     with pytest.raises(AssertionError):
         run_flow("product_intent", replies(STRING_DIMENSIONS), stub_llm,
                  fixture_repo, tmp_path, include=[], exclude=[])
