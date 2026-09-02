@@ -1,5 +1,4 @@
 """Map the API surface and trace one action through it (ch08)."""
-import os
 import re
 
 from pocketflow import Flow
@@ -7,6 +6,7 @@ from pocketflow import Flow
 from crack.core import OverviewNode
 from crack.core.render import (
     Section, Theme, card, esc, extract_mermaid, md, strip_mermaid)
+from crack.core.runner import repo_name_of
 from .nodes import FindRoutes, ApiMenu, TraceActions, EndpointSequence
 
 NAME = "interfaces"
@@ -100,7 +100,7 @@ def build_flow():
 
 def overview_spec(shared):
     """Chapter-specific bits for the shared OverviewNode (crack/core/nodes.py)."""
-    name = os.path.basename(shared["repo_path"].rstrip("/")) or shared["repo_path"]
+    name = repo_name_of(shared["repo_path"]) or shared["repo_path"]
     return {
         "name": name,
         "what": "a product's API surface — every door into the system",

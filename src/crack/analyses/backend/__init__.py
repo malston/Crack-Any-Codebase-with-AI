@@ -1,10 +1,10 @@
 """Read a backend as the six layers every request flows through (ch10)."""
-import os
 
 from pocketflow import Flow
 
 from crack.core import OverviewNode
 from crack.core.render import Section, Theme, esc
+from crack.core.runner import repo_name_of
 from .nodes import BuildBundle, Pipeline, LayerCode, Trace
 
 NAME = "backend"
@@ -73,7 +73,7 @@ def build_flow():
     return Flow(start=bundle)
 
 def overview_spec(shared):
-    name = os.path.basename(shared["repo_path"].rstrip("/")) or shared["repo_path"]
+    name = repo_name_of(shared["repo_path"]) or shared["repo_path"]
     c = shared.get("layer_counts", {})
     return {
         "name": name,

@@ -1,9 +1,9 @@
 """Read the product roadmap already written in the git log (ch06)."""
-import os
 
 from pocketflow import Flow
 
 from crack.core import OverviewNode
+from crack.core.runner import repo_name_of
 from .nodes import FetchHistory, NameEras, ProfileEras, Graveyard
 # This analysis builds its page from structured data rather than markdown
 # blobs, so it keeps its own renderer; crack.core.render defers to these.
@@ -38,7 +38,7 @@ def build_flow():
 # The friendly "start here" welcome runs on the shared OverviewNode
 # (crack/core/nodes.py); this just supplies the chapter-specific bits it needs.
 def overview_spec(shared):
-    name = os.path.basename(shared["repo_path"].rstrip("/")) or shared["repo_path"]
+    name = repo_name_of(shared["repo_path"]) or shared["repo_path"]
     eras = shared.get("eras", [])
     return {
         "name": name,

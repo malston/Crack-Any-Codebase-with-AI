@@ -1,11 +1,11 @@
 """Map a multi-service architecture in three passes (ch09)."""
-import os
 import re
 
 from pocketflow import Flow
 
 from crack.core import OverviewNode
 from crack.core.render import Section, Theme, esc, md
+from crack.core.runner import repo_name_of
 from .nodes import BuildBundle, Inventory, TechStack, TraceRequest
 
 NAME = "architecture"
@@ -70,7 +70,7 @@ def build_flow():
 
 def overview_spec(shared):
     """Chapter-specific bits for the shared OverviewNode (crack/core/nodes.py)."""
-    name = os.path.basename(shared["repo_path"].rstrip("/")) or shared["repo_path"]
+    name = repo_name_of(shared["repo_path"]) or shared["repo_path"]
     n_nodes = len(re.findall(r'^###\s', shared.get("inventory_md", ""), re.MULTILINE))
     return {
         "name": name,

@@ -1,10 +1,10 @@
 """Tour the data model and the migrations that shaped it (ch07)."""
-import os
 
 from pocketflow import Flow
 
 from crack.core import OverviewNode
 from crack.core.render import Section, Theme, esc, md
+from crack.core.runner import repo_name_of
 from .nodes import FindSchema, SchemaTour, TraceFlows, TableDeepDive, MigrationActs
 
 NAME = "schema"
@@ -96,7 +96,7 @@ def build_flow():
 
 def overview_spec(shared):
     """The chapter-specific bits the shared OverviewNode needs (see crack/core/nodes.py)."""
-    name = shared.get("product_name") or os.path.basename(shared["repo_path"].rstrip("/"))
+    name = shared.get("product_name") or repo_name_of(shared["repo_path"]) or shared["repo_path"]
     return {
         "name": name,
         "what": "a database schema as a map of the business",
