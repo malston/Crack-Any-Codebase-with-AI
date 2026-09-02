@@ -29,9 +29,9 @@ def run_analysis(analysis, repo_path, out_root, args):
     with env_defaults(getattr(analysis, "ENV_DEFAULTS", {})):
         analysis.build_flow().run(shared)
 
-    with open(os.path.join(out_dir, "index.md"), "w") as fh:
+    with open(os.path.join(out_dir, "index.md"), "w", encoding="utf-8") as fh:
         fh.write(render_markdown(analysis, name, shared))
-    with open(os.path.join(out_dir, "index.html"), "w") as fh:
+    with open(os.path.join(out_dir, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(render_html(analysis, name, shared))
 
     welcome = (shared.get("overview") or {}).get("welcome", "")

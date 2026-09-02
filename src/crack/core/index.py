@@ -111,6 +111,6 @@ def write_index(root, repo_name, written, failed):
     page = PAGE.format(name=esc(repo_name), sub=esc(sub), cards=cards,
                        failures=_failures(failed))
     path = os.path.join(root, "index.html")
-    with open(path, "w") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         fh.write(page)
     return path
