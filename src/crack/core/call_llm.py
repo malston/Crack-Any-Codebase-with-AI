@@ -51,11 +51,14 @@ def _model_for(provider):
     # answers and don't mind the cost.
     #
     # Override per call with ANTHROPIC_MODEL / OPENAI_MODEL / GEMINI_MODEL.
-    return {
-        "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        "openai":    os.environ.get("OPENAI_MODEL", "gpt-5.1"),
-        "gemini":    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-    }[provider]
+    try:
+        return {
+            "anthropic": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+            "openai":    os.environ.get("OPENAI_MODEL", "gpt-5.1"),
+            "gemini":    os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        }[provider]
+    except KeyError:
+        raise RuntimeError(f"Unknown LLM_PROVIDER={provider!r}") from None
 
 
 def _cache_path(provider, model, prompt):
