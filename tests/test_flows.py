@@ -114,10 +114,6 @@ def test_backend_flow_fills_every_key_the_renderer_reads(
     assert len(prompts) == 4
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "backend_crawl.build_bundle emits its section headers even when it found "
-    "no files, so `assert bundle.strip()` never fires and the model is asked "
-    "to describe an empty bundle."))
 def test_backend_refuses_a_repo_with_no_backend(stub_llm, tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()

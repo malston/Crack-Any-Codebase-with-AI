@@ -37,8 +37,13 @@ def _walk(root):
 
 
 def is_route_file(rel):
-    """True if `rel` (a repo-relative path) declares entry points."""
-    p = rel.replace(os.sep, "/")
+    """True if `rel` (a repo-relative path) declares entry points.
+
+    The directory conventions below are matched with their surrounding slashes,
+    so the path carries a leading one: Next.js keeps `pages/api/` or `app/` at
+    the repo root and Go keeps `cmd/` there, which is the layout each framework
+    generates."""
+    p = "/" + rel.replace(os.sep, "/").lstrip("/")
     base = os.path.basename(p)
     if any(m in base for m in _TEST_MARKERS):
         return False

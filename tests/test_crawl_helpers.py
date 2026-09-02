@@ -10,6 +10,7 @@ import os
 import pytest
 
 from crack.analyses.backend import backend_crawl as bc
+from crack.analyses.architecture import arch_crawl as ac
 from crack.analyses.interfaces import routes_find as rf
 from crack.analyses.git_history.nodes import _era_for, _is_noise_deletion
 
@@ -55,17 +56,13 @@ def test_classify_returns_none_for_files_on_no_layer(rel):
     assert bc.classify(rel) is None
 
 
-# The path conventions each crawler matches as a substring with a leading
-# slash, listed here at the repo root where that match fails. `classify` reads
-# only the Next.js pages tree; `is_route_file` reads all three.
+# The framework conventions that live at a repo's root in a stock layout.
+# `classify` reads only the Next.js pages tree; `is_route_file` reads all three.
 ROOT_LEVEL_NEXT_PAGES = "pages/api/notes.ts"
 ROOT_LEVEL_CONVENTIONS = [ROOT_LEVEL_NEXT_PAGES, "app/api/notes/route.ts",
                           "cmd/server/main.go"]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "the Next.js pages tree is matched as the substring `/pages/api/`, so a "
-    "repo that keeps it at the root is missed. That is the stock layout."))
 def test_classify_reads_a_root_level_next_js_pages_tree():
     assert bc.classify(ROOT_LEVEL_NEXT_PAGES) == "route"
 
@@ -101,11 +98,6 @@ def test_is_route_file_rejects_files_that_declare_no_entry_points(rel):
     assert not rf.is_route_file(rel)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "`/pages/api/`, `/app/` and `/cmd/` are matched as substrings with a "
-    "leading slash, so a repo that keeps any of them at its root is missed. "
-    "That is the stock layout for both Next.js routers and for Go, and "
-    "`FindRoutes` then refuses to run at all."))
 @pytest.mark.parametrize("rel", ROOT_LEVEL_CONVENTIONS)
 def test_is_route_file_reads_a_root_level_framework_convention(rel):
     assert rf.is_route_file(rel)
@@ -113,6 +105,33 @@ def test_is_route_file_reads_a_root_level_framework_convention(rel):
 
 def test_classify_is_case_insensitive_about_the_path():
     assert bc.classify("Notes/Views/Notes.py") == "handler"
+
+
+# --- arch_crawl._classify -----------------------------------------------
+
+@pytest.mark.parametrize("rel, kind", [
+    ("docker-compose.yml", "compose"),
+    ("compose.yaml", "compose"),
+    ("Procfile", "gateway"),
+    (".env.example", "env"),
+    ("infra/main.tf", "iac"),
+    ("next.config.js", "gateway"),
+    ("package.json", "package"),
+    ("k8s/api.yaml", "k8s"),
+    ("deploy/web.yml", "k8s"),
+    ("infra/helm/values.yaml", "k8s"),
+])
+def test_arch_classify_maps_a_config_file_to_its_source(rel, kind):
+    assert ac._classify(rel) == kind
+
+
+@pytest.mark.parametrize("rel", [
+    "README.md",
+    "notes/models.py",
+    "docs/architecture.yaml",   # a yaml on no manifest convention
+])
+def test_arch_classify_returns_none_for_files_on_no_source(rel):
+    assert ac._classify(rel) is None
 
 
 # --- git_history era lookup ---------------------------------------------
