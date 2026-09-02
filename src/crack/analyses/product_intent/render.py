@@ -440,7 +440,7 @@ def render_html(name, shared):
     trap_diagram_html = (
         '      <div class="trap-diagram">\n'
         '        <div class="diagram-label">The trap, in one picture</div>\n'
-        f'        <pre class="mermaid">{diagram_src}</pre>\n'
+        f'        <pre class="mermaid">{_html.escape(diagram_src)}</pre>\n'
         '      </div>'
     ) if diagram_src else ""
 

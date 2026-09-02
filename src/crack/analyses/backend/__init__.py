@@ -4,7 +4,7 @@ import os
 from pocketflow import Flow
 
 from crack.core import OverviewNode
-from crack.core.render import Section, Theme
+from crack.core.render import Section, Theme, esc
 from .nodes import BuildBundle, Pipeline, LayerCode, Trace
 
 NAME = "backend"
@@ -39,7 +39,7 @@ def _hero_prefix(shared):
         return ""
     return ('    <section class="hero-diagram">\n'
             '      <div class="hero-diagram-cap">The request pipeline &mdash; six layers, every time</div>\n'
-            f'      <div class="diagram"><pre class="mermaid">{diagram}</pre></div>\n'
+            f'      <div class="diagram"><pre class="mermaid">{esc(diagram)}</pre></div>\n'
             '    </section>\n')
 
 def _footer(shared):

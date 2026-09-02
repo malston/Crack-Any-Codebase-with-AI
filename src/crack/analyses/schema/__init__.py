@@ -4,7 +4,7 @@ import os
 from pocketflow import Flow
 
 from crack.core import OverviewNode
-from crack.core.render import Section, Theme, md
+from crack.core.render import Section, Theme, esc, md
 from .nodes import FindSchema, SchemaTour, TraceFlows, TableDeepDive, MigrationActs
 
 NAME = "schema"
@@ -54,7 +54,7 @@ def _hero_prefix(shared):
     return ('    <section class="hero-diagram">\n'
             f'      <div class="hero-diagram-cap">The whole schema at a glance &mdash; '
             f'{n_tables} core tables and how they connect</div>\n'
-            f'      <div class="diagram"><pre class="mermaid">{erd}</pre></div>\n'
+            f'      <div class="diagram"><pre class="mermaid">{esc(erd)}</pre></div>\n'
             '    </section>\n')
 
 def _footer(shared):

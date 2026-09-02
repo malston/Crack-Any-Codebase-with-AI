@@ -15,7 +15,7 @@ ENV_DEFAULTS = {"LLM_MAX_OUTPUT_TOKENS": "32768"}
 
 def _sequence_prefix(shared):
     diagram = extract_mermaid(shared.get("sequence_md", ""))
-    return (f'    <div class="diagram"><pre class="mermaid">{diagram}</pre></div>\n'
+    return (f'    <div class="diagram"><pre class="mermaid">{esc(diagram)}</pre></div>\n'
             if diagram else "")
 
 def _sequence_cards(shared, body_md):

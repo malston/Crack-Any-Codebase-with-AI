@@ -30,10 +30,10 @@ def md(text):
 
 def _mermaidize(rendered_html):
     """markdown-it emits ```mermaid as <pre><code class="language-mermaid">…; the
-    Mermaid script wants <pre class="mermaid">…. Rewrite (and un-escape) it."""
+    Mermaid script wants <pre class="mermaid">…. Rewrite it."""
     return re.sub(
         r'<pre><code class="language-mermaid">(.*?)</code></pre>',
-        lambda m: f'<pre class="mermaid">{_html.unescape(m.group(1))}</pre>',
+        lambda m: f'<pre class="mermaid">{m.group(1)}</pre>',
         rendered_html, flags=re.DOTALL,
     )
 
@@ -46,7 +46,7 @@ def md_rich(text):
 def _mermaid_block(source):
     """Wrap raw Mermaid source (from the era `diagram` field) for the Mermaid JS."""
     src = str(source or "").strip()
-    return f'<pre class="mermaid">{src}</pre>' if src else ""
+    return f'<pre class="mermaid">{_html.escape(src)}</pre>' if src else ""
 
 
 def _esc(s):

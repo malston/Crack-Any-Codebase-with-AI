@@ -5,7 +5,7 @@ import re
 from pocketflow import Flow
 
 from crack.core import OverviewNode
-from crack.core.render import Section, Theme, md
+from crack.core.render import Section, Theme, esc, md
 from .nodes import BuildBundle, Inventory, TechStack, TraceRequest
 
 NAME = "architecture"
@@ -35,7 +35,7 @@ def _hero_prefix(shared):
         return ""
     return ('    <section class="hero-diagram">\n'
             '      <div class="hero-diagram-cap">The whole system on one map</div>\n'
-            f'      <div class="diagram"><pre class="mermaid">{diagram}</pre></div>\n'
+            f'      <div class="diagram"><pre class="mermaid">{esc(diagram)}</pre></div>\n'
             '    </section>\n')
 
 def _footer(shared):

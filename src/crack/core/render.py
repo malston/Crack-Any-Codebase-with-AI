@@ -60,7 +60,7 @@ class Theme:
 def _mermaidize(rendered_html):
     return re.sub(
         r'<pre><code class="language-mermaid">(.*?)</code></pre>',
-        lambda m: f'<pre class="mermaid">{_html.unescape(m.group(1))}</pre>',
+        lambda m: f'<pre class="mermaid">{m.group(1)}</pre>',
         rendered_html, flags=re.DOTALL,
     )
 
