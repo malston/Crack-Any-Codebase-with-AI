@@ -2,7 +2,7 @@
 
 Picks the provider based on which env var is set:
   ANTHROPIC_API_KEY  -> Claude (claude-sonnet-4-6)
-  OPENAI_API_KEY     -> OpenAI (gpt-4o)
+  OPENAI_API_KEY     -> OpenAI (gpt-5.1)
   GEMINI_API_KEY     -> Gemini (gemini-2.5-flash)
 
 Override the auto pick with LLM_PROVIDER=anthropic|openai|gemini.
