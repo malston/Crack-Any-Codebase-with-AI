@@ -181,10 +181,13 @@ UNIFICATIONS = [
 
     # Security fix: the engine HTML-escapes the mermaid diagram source before
     # writing it into <pre class="mermaid">, closing an HTML-injection hole.
-    # ch07 keeps the vulnerable unescaped form. The fixture ERD below has no
-    # characters html.escape() touches, so escaping it is a no-op here; the
-    # pair is a documented old==new identity, not a real rewrite.
-    ("erDiagram\nUSERS ||--o{ POSTS : writes", "erDiagram\nUSERS ||--o{ POSTS : writes"),
+    # ch07 keeps the vulnerable unescaped form. The fixture ERD carries quoted
+    # labels containing & and > so this pair is a real rewrite: it fails if the
+    # escaping is ever dropped.
+    ('erDiagram\nUSERS ||--o{ POSTS : "writes & edits"\n'
+     'POSTS ||--o{ COMMENTS : "has >0"',
+     'erDiagram\nUSERS ||--o{ POSTS : &quot;writes &amp; edits&quot;\n'
+     'POSTS ||--o{ COMMENTS : &quot;has &gt;0&quot;'),
 ]
 
 SHARED = {
@@ -192,7 +195,8 @@ SHARED = {
     "product_name": "Discourse",
     "one_liner": "A forum with 180 tables.",
     "schema_path": "db/structure.sql",
-    "erd": "erDiagram\nUSERS ||--o{ POSTS : writes",
+    "erd": ('erDiagram\nUSERS ||--o{ POSTS : "writes & edits"\n'
+            'POSTS ||--o{ COMMENTS : "has >0"'),
     "table_list": ["users", "posts", "topics"],
     "migration_names": ["20230101_add_users", "20230202_add_posts"],
     "tour_md": "### Users and posts\nThe core cluster.",
